@@ -12,6 +12,7 @@
     <meta name="theme-color" content="#1e293b">
     <link rel="apple-touch-icon" href="icon-192.png">
 
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -20,21 +21,55 @@
         }
     </script>
 
+    <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js" crossorigin="anonymous"></script>
 
     <style>
+        /* Hide Spin Buttons */
         input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
         input[type=number] { -moz-appearance: textfield; }
+        
+        /* Custom Color Picker */
         input[type="color"] { -webkit-appearance: none; border: none; padding: 0; width: 24px; height: 24px; border-radius: 4px; overflow: hidden; cursor: pointer; }
         input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
         input[type="color"]::-webkit-color-swatch { border: none; }
 
-        :root { --chart-text: #334155; --bg-grey-bar: #e2e8f0; }
-        .dark { --chart-text: #cbd5e1; --bg-grey-bar: #334155; }
+        /* Chart Variables */
+        :root { --chart-text: #334155; --bg-grey-bar: #e2e8f0; --sticky-bg: #ffffff; }
+        .dark { --chart-text: #cbd5e1; --bg-grey-bar: #334155; --sticky-bg: #1e293b; }
+
+        /* STICKY COLUMNS CSS */
+        .sticky-col-1 {
+            position: sticky; left: 0; 
+            z-index: 20; 
+            background-color: var(--sticky-bg); /* Prevents transparency issues */
+        }
+        .sticky-col-2 {
+            position: sticky; left: 45px; /* Width of col 1 + padding */
+            z-index: 20;
+            background-color: var(--sticky-bg);
+            border-right: 2px solid #e2e8f0; /* Visual separator */
+        }
+        .dark .sticky-col-2 { border-right-color: #334155; }
+
+        /* Ensure text wrapping in headers */
+        th, td { white-space: normal; word-wrap: break-word; }
+        
+        /* Red Error Outline Class */
+        .input-error {
+            border: 2px solid #ef4444 !important; /* Red-500 */
+            background-color: #fef2f2 !important; /* Red-50 */
+            color: #b91c1c !important; /* Red-700 */
+        }
+        .dark .input-error {
+            background-color: #450a0a !important; 
+            color: #fecaca !important;
+        }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-800 dark:bg-slate-900 dark:text-slate-100 transition-colors duration-300 min-h-screen p-2 sm:p-4">
 
+    <!-- Global Error Log -->
     <div id="error-log" class="hidden bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert"></div>
 
     <div class="max-w-7xl mx-auto space-y-4">
@@ -61,8 +96,8 @@
                 <h2 class="text-base font-semibold mb-2">Utilization</h2>
                 <div class="bg-slate-50 dark:bg-slate-900/50 p-2 rounded border-l-4 border-blue-500 text-xs sm:text-sm text-slate-600 dark:text-slate-400 mb-3">
                     <span class="inline-block w-3 h-3 bg-slate-200 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 mr-1 align-middle"></span> 
-                    <strong>Grey</strong>: Free Space. <strong>Striped</strong>: Limit Exceeded.
-                    <br>Click legend items below to filter workloads.
+                    <strong>Grey</strong>: Free Space. <strong>Striped</strong>: Limit Exceeded (Click to view details).
+                    <br>Click legend items to filter workloads.
                 </div>
                 <div class="relative h-[400px] w-full">
                     <canvas id="utilizationChart"></canvas>
@@ -72,7 +107,7 @@
             <!-- CONFIG TABLE -->
             <div class="bg-white dark:bg-slate-800 p-3 sm:p-4 rounded-lg shadow border border-slate-200 dark:border-slate-700">
                 <h2 class="text-base font-semibold mb-2">1. Configuration</h2>
-                <div class="overflow-x-auto">
+                <div class="overflow-x-auto relative">
                     <table id="capacityTable" class="w-full text-left text-xs sm:text-sm border-collapse min-w-[600px]">
                         <thead class="bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200"></thead>
                         <tbody class="divide-y divide-slate-200 dark:divide-slate-700"></tbody>
@@ -86,7 +121,7 @@
                     <h2 class="text-base font-semibold">2. Project Workloads</h2>
                     <button id="btnAddProject" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold py-1 px-3 rounded shadow transition">+ Add Workload</button>
                 </div>
-                <div class="overflow-x-auto">
+                <div class="overflow-x-auto relative">
                     <table id="projectsTable" class="w-full text-left text-xs sm:text-sm border-collapse min-w-[700px]">
                         <thead class="bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200"></thead>
                         <tbody id="projectRows" class="divide-y divide-slate-200 dark:divide-slate-700"></tbody>
@@ -177,7 +212,7 @@
 
         function loadState() {
             try {
-                const stored = localStorage.getItem('serverDashboardData_v9');
+                const stored = localStorage.getItem('serverDashboardData_v10');
                 if (!stored) return false;
                 const data = JSON.parse(stored);
                 if (!data.clusters || !data.projects) return false;
@@ -196,7 +231,7 @@
                 labels: resLabels,
                 theme: localStorage.getItem('theme') || 'light'
             };
-            localStorage.setItem('serverDashboardData_v9', JSON.stringify(data));
+            localStorage.setItem('serverDashboardData_v10', JSON.stringify(data));
         }
 
         function toggleTheme() {
@@ -219,57 +254,37 @@
             updateChart();
         }
 
-        // --- LOGIC: Validate Input & Calc Total ---
-        function calculateClusterUsage(clusterId, resourceKey) {
-            let total = 0;
+        // --- HELPER: Calc Usage Stats ---
+        function getClusterUsageStats(clusterId, resourceKey) {
+            let totalUsed = 0;
             projects.forEach(p => {
                 if(p.clusterId === clusterId) {
-                    total += (parseFloat(p[resourceKey]) || 0);
+                    totalUsed += (parseFloat(p[resourceKey]) || 0);
                 }
             });
-            return total;
+            const cluster = clusterState.find(c => c.id === clusterId);
+            const capacity = cluster ? (parseFloat(cluster[resourceKey]) || 1) : 1;
+            return { used: totalUsed, capacity: capacity, exceeded: Math.max(0, totalUsed - capacity) };
         }
 
-        // Exposed functions
+        // --- ALERT HELPERS ---
+        function showLimitWarning(msg) {
+            // Simple alert for now, can be modal later
+            alert(msg);
+        }
+
+        // --- GLOBAL ACTIONS ---
         window.updateClusterName = (id, val) => { clusterState.find(c => c.id === id).name = val; saveState(); renderProjectTable(); updateChart(); };
-        window.updateClusterCap = (id, k, val) => { clusterState.find(c => c.id === id)[k] = parseFloat(val) || 1; saveState(); updateChart(); };
+        window.updateClusterCap = (id, k, val) => { clusterState.find(c => c.id === id)[k] = parseFloat(val) || 1; saveState(); renderProjectTable(); updateChart(); }; // Re-render project table to update highlighting
         window.updateLabel = (idx, val) => { resLabels[idx] = val; saveState(); renderProjectTable(); updateChart(); };
         
         window.updateProj = (idx, field, val) => {
-            if(field === 'name' || field === 'color') {
-                projects[idx][field] = val;
-                saveState(); updateChart();
-                return;
-            }
-
-            if(field === 'clusterId') {
-                projects[idx][field] = val;
-                saveState(); updateChart();
-                return;
-            }
-
-            // Numeric Update with Validation
-            const newVal = parseFloat(val) || 0;
-            
-            // Validation Logic: Check if we are exceeding
-            const p = projects[idx];
-            const cluster = clusterState.find(c => c.id === p.clusterId);
-            const currentTotal = calculateClusterUsage(p.clusterId, field);
-            const oldValue = parseFloat(p[field]) || 0;
-            const newTotal = (currentTotal - oldValue) + newVal;
-            const capacity = cluster[field];
-
-            projects[idx][field] = newVal; // We save it regardless to show the error on chart
-            saveState(); 
+            if(field !== 'name' && field !== 'clusterId' && field !== 'color') val = parseFloat(val) || 0;
+            projects[idx][field] = val;
+            saveState();
+            // We must re-render the table to apply the red outline if limit exceeded
+            renderProjectTable(); 
             updateChart();
-
-            if (newTotal > capacity) {
-                const exceeded = newTotal - capacity;
-                // Defer alert so the chart has time to update visually
-                setTimeout(() => {
-                    alert(`⚠️ WARNING: Capacity Exceeded!\n\nResource: ${field.toUpperCase()}\nLimit: ${capacity}\nTotal Requested: ${newTotal}\nExceeded by: ${exceeded}\n\nThe chart will indicate this with a striped pattern.`);
-                }, 100);
-            }
         };
 
         window.removeProj = (idx) => { if(confirm('Delete?')) { projects.splice(idx, 1); saveState(); renderProjectTable(); updateChart(); } };
@@ -283,12 +298,14 @@
             saveState(); renderProjectTable(); updateChart();
         }
 
+        // --- RENDERERS ---
         const inputBase = "w-full bg-slate-50 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded px-2 py-1 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-blue-500 text-base focus:outline-none";
-        const headerInput = "w-full bg-transparent text-center font-bold text-slate-700 dark:text-slate-200 focus:bg-slate-200 dark:focus:bg-slate-600 rounded py-1 px-1 focus:outline-none text-base border border-transparent hover:border-slate-300";
+        const headerInput = "w-full bg-transparent text-center font-bold text-slate-700 dark:text-slate-200 focus:bg-slate-200 dark:focus:bg-slate-600 rounded py-1 px-1 focus:outline-none text-base border border-transparent hover:border-slate-300 whitespace-normal";
 
         function renderCapacityTable() {
             const table = document.getElementById('capacityTable');
-            let theadHtml = `<tr><th class="p-2 min-w-[120px]">Cluster Name</th>`;
+            // Sticky Cluster Name
+            let theadHtml = `<tr><th class="p-2 min-w-[120px] sticky-col-1">Cluster Name</th>`;
             resLabels.forEach((label, idx) => {
                 theadHtml += `<th class="p-2 min-w-[100px]"><input type="text" class="${headerInput}" value="${label}" onchange="updateLabel(${idx}, this.value)"></th>`;
             });
@@ -297,7 +314,7 @@
 
             let tbodyHtml = '';
             clusterState.forEach(c => {
-                let row = `<td class="p-2"><input type="text" class="${inputBase} font-bold" value="${c.name}" onchange="updateClusterName('${c.id}', this.value)"></td>`;
+                let row = `<td class="p-2 sticky-col-1"><input type="text" class="${inputBase} font-bold" value="${c.name}" onchange="updateClusterName('${c.id}', this.value)"></td>`;
                 resKeys.forEach(k => row += `<td class="p-2"><input type="number" class="${inputBase}" value="${c[k]}" onchange="updateClusterCap('${c.id}', '${k}', this.value)" min="1"></td>`);
                 tbodyHtml += `<tr>${row}</tr>`;
             });
@@ -306,23 +323,56 @@
 
         function renderProjectTable() {
             const table = document.getElementById('projectsTable');
+            // Sticky Color (1) and Name (2)
             let theadHtml = `<tr>
-                <th class="p-2 w-10">Col</th>
-                <th class="p-2 min-w-[140px]">Name</th>
+                <th class="p-2 w-[45px] sticky-col-1 z-30">Col</th>
+                <th class="p-2 min-w-[140px] sticky-col-2 z-30">Name</th>
                 <th class="p-2 min-w-[120px]">Assigned</th>`;
-            resLabels.forEach(label => theadHtml += `<th class="p-2 min-w-[80px]">${label}</th>`);
+            resLabels.forEach(label => theadHtml += `<th class="p-2 min-w-[80px] whitespace-normal">${label}</th>`);
             theadHtml += `<th class="p-2 w-24 text-center">Actions</th></tr>`;
             table.querySelector('thead').innerHTML = theadHtml;
 
             const tbody = document.getElementById('projectRows');
             tbody.innerHTML = '';
+            
             projects.forEach((p, idx) => {
+                // Calculate Overloads to determine Red Highlights
+                let isProjectInTrouble = false;
+                let errorFields = {};
+
+                resKeys.forEach(key => {
+                    const stats = getClusterUsageStats(p.clusterId, key);
+                    if (stats.exceeded > 0) {
+                        // Check if THIS project contributes to the problem (has > 0 value)
+                        if (parseFloat(p[key]) > 0) {
+                            errorFields[key] = { exceeded: stats.exceeded, total: stats.used, limit: stats.capacity };
+                            isProjectInTrouble = true;
+                        }
+                    }
+                });
+
+                const nameErrorClass = isProjectInTrouble ? 'input-error' : '';
+                const nameClick = isProjectInTrouble ? `onclick="showLimitWarning('Project contains fields that exceed cluster limits!')"` : '';
+
                 const opts = clusterState.map(c => `<option value="${c.id}" ${c.id === p.clusterId ? 'selected' : ''}>${c.name}</option>`).join('');
+                
                 let row = `
-                    <td class="p-2 text-center"><input type="color" value="${p.color}" onchange="updateProj(${idx}, 'color', this.value)"></td>
-                    <td class="p-2"><input type="text" class="${inputBase}" value="${p.name}" onchange="updateProj(${idx}, 'name', this.value)"></td>
+                    <td class="p-2 text-center sticky-col-1"><input type="color" value="${p.color}" onchange="updateProj(${idx}, 'color', this.value)"></td>
+                    <td class="p-2 sticky-col-2">
+                        <input type="text" class="${inputBase} ${nameErrorClass}" value="${p.name}" onchange="updateProj(${idx}, 'name', this.value)" ${nameClick}>
+                    </td>
                     <td class="p-2"><select class="${inputBase}" onchange="updateProj(${idx}, 'clusterId', this.value)">${opts}</select></td>`;
-                resKeys.forEach(k => row += `<td class="p-2"><input type="number" class="${inputBase}" value="${p[k]}" onchange="updateProj(${idx}, '${k}', this.value)" min="0"></td>`);
+                
+                resKeys.forEach((k, rIdx) => {
+                    const err = errorFields[k];
+                    const inputErrClass = err ? 'input-error' : '';
+                    const labelName = resLabels[rIdx];
+                    const inputClick = err ? `onclick="showLimitWarning('⚠️ LIMIT EXCEEDED\\n\\nResource: ${labelName}\\nTotal Used: ${err.total}\\nCapacity: ${err.limit}\\nExceeded By: ${err.exceeded}')"` : '';
+                    
+                    row += `<td class="p-2">
+                        <input type="number" class="${inputBase} ${inputErrClass}" value="${p[k]}" onchange="updateProj(${idx}, '${k}', this.value)" min="0" ${inputClick}>
+                    </td>`;
+                });
                 
                 row += `<td class="p-2 text-center flex justify-center gap-1">
                     <button class="bg-amber-500 text-white p-1.5 rounded hover:bg-amber-600 flex items-center justify-center shadow" onclick="duplicateProj(${idx})" title="Clone">
@@ -339,73 +389,33 @@
         // --- CHART HELPERS ---
         function getCssVar(name) { return getComputedStyle(document.body).getPropertyValue(name).trim(); }
 
-        // Generate Stripes for "Limit Exceeded"
         function getStripePattern(color) {
             const patternCanvas = document.createElement('canvas');
             const pCtx = patternCanvas.getContext('2d');
-            patternCanvas.width = 10;
-            patternCanvas.height = 10;
-            pCtx.fillStyle = color;
-            pCtx.fillRect(0,0,10,10);
-            pCtx.strokeStyle = '#ffffff';
-            pCtx.lineWidth = 2;
-            pCtx.beginPath();
-            pCtx.moveTo(0, 10); pCtx.lineTo(10, 0);
-            pCtx.stroke();
+            patternCanvas.width = 10; patternCanvas.height = 10;
+            pCtx.fillStyle = color; pCtx.fillRect(0,0,10,10);
+            pCtx.strokeStyle = 'rgba(255,255,255,0.7)'; pCtx.lineWidth = 2;
+            pCtx.beginPath(); pCtx.moveTo(0, 10); pCtx.lineTo(10, 0); pCtx.stroke();
             return patternCanvas;
         }
 
-        // Custom Plugin to Draw Grid Lines ON TOP and Labels
         const gridOverlayPlugin = {
             id: 'gridOverlay',
             afterDraw(chart) {
-                const ctx = chart.ctx;
-                const xAxis = chart.scales.x;
-                const yAxis = chart.scales.y;
+                const ctx = chart.ctx; const xAxis = chart.scales.x; const yAxis = chart.scales.y;
                 const gridColor = localStorage.getItem('theme') === 'dark' ? '#cbd5e1' : '#1e293b';
-
-                // 1. Draw Vertical Lines at 100 and 200 (The Cluster Separators)
-                // These must be on top of the bars
                 [100, 200].forEach(val => {
                     const x = xAxis.getPixelForValue(val);
-                    ctx.save();
-                    ctx.beginPath();
-                    ctx.moveTo(x, yAxis.top);
-                    ctx.lineTo(x, yAxis.bottom);
-                    ctx.lineWidth = 2;
-                    ctx.strokeStyle = gridColor;
-                    ctx.stroke();
-                    ctx.restore();
-                });
-
-                // 2. Draw "LIMIT EXCEEDED" Text on overloaded bars
-                const datasets = chart.data.datasets;
-                datasets.forEach((ds, dsIndex) => {
-                    const meta = chart.getDatasetMeta(dsIndex);
-                    if(ds.isOverloaded) { // Flag we set in logic
-                         meta.data.forEach((bar, index) => {
-                             if(bar && ds.data[index] !== null) { // If visible
-                                 ctx.save();
-                                 ctx.font = 'bold 10px Arial';
-                                 ctx.fillStyle = '#fff';
-                                 ctx.textAlign = 'center';
-                                 ctx.textBaseline = 'middle';
-                                 // Add drop shadow for readability
-                                 ctx.shadowColor = 'black';
-                                 ctx.shadowBlur = 3;
-                                 ctx.fillText('LIMIT EXCEEDED', bar.x - (bar.width / 2), bar.y);
-                                 ctx.restore();
-                             }
-                         });
-                    }
+                    ctx.save(); ctx.beginPath(); ctx.moveTo(x, yAxis.top); ctx.lineTo(x, yAxis.bottom);
+                    ctx.lineWidth = 2; ctx.strokeStyle = gridColor; ctx.stroke(); ctx.restore();
                 });
             }
         };
         Chart.register(gridOverlayPlugin);
 
-
         function updateChart() {
             const ctx = document.getElementById('utilizationChart').getContext('2d');
+            
             let usageMap = {}; clusterState.forEach(c => usageMap[c.id] = Array(resKeys.length).fill(0));
             let offsets = Array(resKeys.length).fill(0).map(() => ({})); clusterState.forEach(c => offsets.forEach(row => row[c.id] = 0));
             let datasets = [];
@@ -415,61 +425,65 @@
             clusterState.forEach((c, i) => {
                 datasets.push({
                     label: `_BG_${c.id}`, data: resKeys.map(() => [i*100, (i*100)+100]),
-                    backgroundColor: bgBarColor, barPercentage: 0.9, categoryPercentage: 0.9, grouped: false, order: 10,
-                    clusterId: c.id, clusterName: c.name
+                    backgroundColor: bgBarColor, barPercentage: 0.9, categoryPercentage: 0.9, grouped: false, order: 10, clusterId: c.id, clusterName: c.name
                 });
             });
 
-            // Projects
+            // GRANULAR STRIPING LOGIC
             projects.forEach(p => {
                 let pts = [];
+                let bgColors = []; // Array of colors for this dataset (one per resource bar)
+                
                 const cIndex = clusterState.findIndex(c => c.id === p.clusterId);
                 if(cIndex === -1) return;
                 const base = cIndex * 100;
                 const clusterObj = clusterState[cIndex];
-                let isOverloaded = false;
 
                 resKeys.forEach((key, rIdx) => {
-                    const cap = clusterObj[key]; const pct = (p[key] / cap) * 100;
+                    const cap = clusterObj[key]; 
+                    const pct = (p[key] / cap) * 100;
                     let start = base + offsets[rIdx][p.clusterId]; 
                     let end = start + pct;
                     
-                    // Clamping logic: Visual cap at 100%
+                    // Check if THIS SPECIFIC resource bar segment goes over 100% of cluster capacity
+                    let isOverloaded = false;
                     if(end > base + 100) {
                         end = base + 100;
                         isOverloaded = true;
                     }
-                    
+
                     if (pct > 0 && start < end) {
                         pts.push([start, end]);
                     } else if (isOverloaded && start < (base + 100)) {
-                         // Even if 0 width mathematically, show a sliver if overloaded? 
-                         // No, standard overlap logic covers it.
-                         // But if start < 100, we draw until 100.
-                         pts.push([start, base+100]);
+                        pts.push([start, base+100]); // Draw sliver if needed
                     } else {
                         pts.push(null);
                     }
                     
+                    // Assign granular pattern/color for this specific bar
+                    if(isOverloaded) {
+                        const pattern = ctx.createPattern(getStripePattern(p.color), 'repeat');
+                        bgColors.push(pattern);
+                    } else {
+                        bgColors.push(p.color);
+                    }
+
                     usageMap[p.clusterId][rIdx] += pct; offsets[rIdx][p.clusterId] += pct;
                 });
                 
-                // Determine color: Solid or Striped if overloaded
-                let bgColor = p.color;
-                if(isOverloaded) {
-                     const pattern = ctx.createPattern(getStripePattern(p.color), 'repeat');
-                     bgColor = pattern;
-                }
-
                 datasets.push({ 
                     label: p.name, 
                     data: pts, 
-                    backgroundColor: bgColor, 
-                    barPercentage: 0.9, 
-                    categoryPercentage: 0.9, 
-                    grouped: false, 
-                    order: 1,
-                    isOverloaded: isOverloaded // custom flag for plugin
+                    backgroundColor: bgColors, // Now an array!
+                    barPercentage: 0.9, categoryPercentage: 0.9, grouped: false, order: 1,
+                    // Store overloaded state array for click handler
+                    overloadedState: pts.map((pt, i) => {
+                        if(!pt) return false;
+                        const cIdx = clusterState.findIndex(c => c.id === p.clusterId);
+                        const base = cIdx * 100;
+                        const stats = getClusterUsageStats(p.clusterId, resKeys[i]);
+                        return stats.exceeded > 0;
+                    })
                 });
             });
 
@@ -482,33 +496,27 @@
                 data: { labels: resLabels, datasets: datasets },
                 options: {
                     indexAxis: 'y', responsive: true, maintainAspectRatio: false,
-                    scales: {
-                        x: { 
-                            min: 0, max: 300, stacked: false, 
-                            grid: { display: false }, // We draw main grid via plugin
-                            ticks: { 
-                                color: textColor, 
-                                callback: v => (v===0)?'0%':(v===100 || v===200 || v===300)?'100%':''
+                    onClick: (e, elements) => {
+                        if (elements.length > 0) {
+                            const el = elements[0];
+                            const dsIndex = el.datasetIndex;
+                            const index = el.index; // resource index
+                            const ds = myChart.data.datasets[dsIndex];
+                            
+                            // Check if this segment is overloaded
+                            if (ds.overloadedState && ds.overloadedState[index]) {
+                                const resourceName = resLabels[index];
+                                showLimitWarning(`⚠️ LIMIT EXCEEDED\n\nResource: ${resourceName}\nClick 'OK' to fix in table.`);
                             }
-                        },
-                        x2: { 
-                            position: 'top', min: 0, max: 300, grid: { display: false },
-                            ticks: { color: textColor, font: { weight: 'bold', size: 12 }, callback: v => (v===50)?clusterState[0]?.name:(v===150)?clusterState[1]?.name:(v===250)?clusterState[2]?.name:'' }
-                        },
+                        }
+                    },
+                    scales: {
+                        x: { min: 0, max: 300, stacked: false, grid: { display: false }, ticks: { color: textColor, callback: v => (v===0)?'0%':(v===100 || v===200 || v===300)?'100%':'' } },
+                        x2: { position: 'top', min: 0, max: 300, grid: { display: false }, ticks: { color: textColor, font: { weight: 'bold', size: 12 }, callback: v => (v===50)?clusterState[0]?.name:(v===150)?clusterState[1]?.name:(v===250)?clusterState[2]?.name:'' } },
                         y: { stacked: false, ticks: { color: textColor, font: {size: 11} } }
                     },
                     plugins: {
-                        legend: { 
-                            display: true,
-                            position: 'top',
-                            labels: {
-                                filter: function(item, chart) {
-                                    // Hide background datasets from legend
-                                    return !item.text.startsWith('_BG_');
-                                },
-                                color: textColor
-                            }
-                        },
+                        legend: { display: true, position: 'top', labels: { filter: i => !i.text.startsWith('_BG_'), color: textColor }, onClick: Chart.defaults.plugins.legend.onClick },
                         tooltip: {
                             callbacks: {
                                 label: function(ctx) {
