@@ -28,8 +28,17 @@
         /* Utilities */
         input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
         input[type=number] { -moz-appearance: textfield; }
-        input[type="color"] { -webkit-appearance: none; border: none; padding: 0; width: 24px; height: 24px; border-radius: 4px; overflow: hidden; cursor: pointer; }
         
+        /* Custom Color Picker Reset */
+        input[type="color"] { 
+            -webkit-appearance: none; border: none; padding: 0; 
+            width: 24px; height: 24px; 
+            border-radius: 4px; overflow: hidden; cursor: pointer; 
+            background: none;
+        }
+        input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; border: none; }
+        input[type="color"]::-webkit-color-swatch { border: none; border-radius: 4px; padding: 0; }
+
         :root { --chart-text: #334155; --bg-grey-bar: #e2e8f0; --sticky-bg: #ffffff; }
         .dark { --chart-text: #cbd5e1; --bg-grey-bar: #334155; --sticky-bg: #1e293b; }
 
@@ -44,10 +53,29 @@
         }
         .dark .input-error { background-color: #450a0a !important; color: #fecaca !important; }
 
-        /* Text Wrapping */
-        th, td { white-space: normal; word-wrap: break-word; vertical-align: top; }
+        /* Text Wrapping Enforcers */
+        th, td { 
+            white-space: normal !important; 
+            word-wrap: break-word !important; 
+            overflow-wrap: break-word !important;
+            vertical-align: top; 
+        }
         
-        /* Auto-Sizing Input base style */
+        /* Editable Div looking like Input (for Headers) */
+        .editable-header {
+            min-width: 80px;
+            white-space: normal; /* Allow wrapping */
+            word-break: break-word;
+            outline: none;
+            cursor: text;
+            display: block;
+        }
+        .editable-header:focus {
+            background-color: rgba(255,255,255,0.1);
+            border-radius: 4px;
+        }
+
+        /* Auto-Sizing Input base style (For Data Cells Only) */
         .autosize-input {
             width: 100%;
             white-space: nowrap;
@@ -58,6 +86,7 @@
 </head>
 <body class="bg-slate-50 text-slate-800 dark:bg-slate-900 dark:text-slate-100 transition-colors duration-300 min-h-screen p-2 sm:p-4">
 
+    <!-- Global Error Log -->
     <div id="error-log" class="hidden bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert"></div>
 
     <div class="max-w-7xl mx-auto space-y-4">
@@ -67,7 +96,8 @@
             <div class="flex items-center gap-3">
                 <h1 class="text-lg sm:text-xl font-bold text-blue-600 dark:text-blue-400 whitespace-nowrap">Server Utilisation</h1>
                 <div class="flex gap-2">
-                    <button id="btnUpdate" class="bg-green-600 hover:bg-green-700 text-white text-xs sm:text-sm font-semibold py-1.5 px-3 rounded shadow transition">↻ Update</button>
+                    <!-- Renamed Button -->
+                    <button id="btnUpdate" class="bg-green-600 hover:bg-green-700 text-white text-xs sm:text-sm font-semibold py-1.5 px-3 rounded shadow transition">↻ Update App</button>
                     <button id="btnReset" class="bg-red-500 hover:bg-red-600 text-white text-xs sm:text-sm font-semibold py-1.5 px-3 rounded shadow transition">Reset</button>
                 </div>
             </div>
@@ -94,7 +124,7 @@
             <div class="bg-white dark:bg-slate-800 p-3 sm:p-4 rounded-lg shadow border border-slate-200 dark:border-slate-700">
                 <div class="flex justify-between items-center mb-2">
                     <h2 class="text-base font-semibold">1. Configuration</h2>
-                    <button onclick="addNewResource()" class="bg-green-600 text-white text-xs font-bold py-1 px-2 rounded hover:bg-green-700" title="Add Resource Column">+ Column</button>
+                    <button onclick="addNewResource()" class="bg-green-600 text-white text-xs font-bold py-1 px-2 rounded hover:bg-green-700 shadow" title="Add Resource Column">+ Column</button>
                 </div>
                 <div class="overflow-x-auto relative">
                     <table id="capacityTable" class="w-full text-left text-xs sm:text-sm border-collapse min-w-[600px]">
@@ -187,14 +217,14 @@
 
         function loadState() {
             try {
-                const stored = localStorage.getItem('serverDashboardData_v11');
+                const stored = localStorage.getItem('serverDashboardData_v12');
                 if (!stored) return false;
                 const data = JSON.parse(stored);
                 if (!data.clusters || !data.projects) return false;
                 clusterState = data.clusters;
                 projects = data.projects;
                 resLabels = data.labels || [...initialLabels];
-                resKeys = data.keys || [...initialKeys]; // Load keys dynamically
+                resKeys = data.keys || [...initialKeys];
                 if(data.theme) localStorage.setItem('theme', data.theme);
                 return true;
             } catch(e) { return false; }
@@ -206,7 +236,7 @@
                 labels: resLabels, keys: resKeys,
                 theme: localStorage.getItem('theme') || 'light'
             };
-            localStorage.setItem('serverDashboardData_v11', JSON.stringify(data));
+            localStorage.setItem('serverDashboardData_v12', JSON.stringify(data));
         }
 
         function toggleTheme() {
@@ -225,7 +255,7 @@
 
         // --- UNIFIED WARNING MESSAGE ---
         function getUnifiedWarning(resIndex, clusterId) {
-            const label = resLabels[resIndex];
+            const label = resLabels[resIndex] || 'Unknown';
             const key = resKeys[resIndex];
             const stats = getClusterUsageStats(clusterId, key);
             return `⚠️ LIMIT EXCEEDED\n\nResource: ${label}\nTotal Used: ${stats.used}\nCapacity: ${stats.capacity}\nExceeded By: ${stats.exceeded}`;
@@ -235,21 +265,10 @@
         function bindLongPress(element, callback) {
             let timer;
             const start = (e) => {
-                timer = setTimeout(() => {
-                    timer = null;
-                    callback();
-                }, 600); // 600ms threshold
+                timer = setTimeout(() => { timer = null; callback(); }, 600);
             };
-            const end = (e) => {
-                if (timer) {
-                    clearTimeout(timer);
-                    // Standard click behavior proceeds naturally as element focus isn't blocked
-                }
-            };
-            // Prevent context menu on mobile long press
-            element.addEventListener('contextmenu', (e) => {
-                if(!timer) e.preventDefault(); 
-            });
+            const end = (e) => { if (timer) clearTimeout(timer); };
+            element.addEventListener('contextmenu', (e) => { if(!timer) e.preventDefault(); });
             element.addEventListener('mousedown', start);
             element.addEventListener('touchstart', start, {passive: true});
             element.addEventListener('mouseup', end);
@@ -273,26 +292,23 @@
             
             resKeys.push(key);
             resLabels.push(name);
-            
-            // Init data
             clusterState.forEach(c => c[key] = 0);
             projects.forEach(p => p[key] = 0);
-            
             saveState(); refreshUI();
         }
 
         window.removeResource = function(idx) {
             if(!confirm(`Remove resource column '${resLabels[idx]}'?`)) return;
-            const key = resKeys[idx];
             resKeys.splice(idx, 1);
             resLabels.splice(idx, 1);
-            // We don't delete data from objects to be safe, just hide column
             saveState(); refreshUI();
         }
 
         window.updateClusterName = (id, val) => { clusterState.find(c => c.id === id).name = val; saveState(); renderProjectTable(); updateChart(); };
         window.updateClusterCap = (id, k, val) => { clusterState.find(c => c.id === id)[k] = parseFloat(val) || 1; saveState(); renderProjectTable(); updateChart(); };
-        window.updateLabel = (idx, val) => { resLabels[idx] = val; saveState(); renderProjectTable(); updateChart(); };
+        
+        // Updated: Handles Text Edit in Div
+        window.updateLabel = (idx, val) => { resLabels[idx] = val.trim(); saveState(); renderProjectTable(); updateChart(); };
         
         window.updateProj = (idx, field, val) => {
             if(field !== 'name' && field !== 'clusterId' && field !== 'color') val = parseFloat(val) || 0;
@@ -308,34 +324,29 @@
         
         function addProject() {
             projects.push({ id: Date.now(), name: 'New App', clusterId: 'c1', color: palette[projects.length % palette.length] });
-            // Init all keys
             resKeys.forEach(k => projects[projects.length-1][k] = 0);
             saveState(); renderProjectTable(); updateChart();
         }
 
-        // --- AUTO-SIZE FONT LOGIC ---
         function autoFitInput(input) {
-            // Reset to base size to check scroll width
             input.style.fontSize = '16px'; 
-            // If content overflows, shrink
             if (input.scrollWidth > input.clientWidth) {
                 const ratio = input.clientWidth / input.scrollWidth;
-                const newSize = Math.max(10, Math.floor(16 * ratio)); // Min 10px
+                const newSize = Math.max(10, Math.floor(16 * ratio)); 
                 input.style.fontSize = newSize + 'px';
             }
         }
 
-        // --- RENDERERS ---
         const inputBase = "autosize-input bg-slate-50 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded px-1 py-1 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-blue-500 focus:outline-none";
-        const headerInput = "autosize-input bg-transparent text-center font-bold text-slate-700 dark:text-slate-200 focus:bg-slate-200 dark:focus:bg-slate-600 rounded py-1 px-1 focus:outline-none border border-transparent hover:border-slate-300";
-
+        
         function renderCapacityTable() {
             const table = document.getElementById('capacityTable');
             let theadHtml = `<tr><th class="p-2 min-w-[120px] sticky-col-1">Cluster Name</th>`;
             resLabels.forEach((label, idx) => {
+                // FIXED: Used contenteditable div for wrapping headers, replaced tiny X with big button
                 theadHtml += `<th class="p-2 min-w-[100px] relative">
-                    <input type="text" class="${headerInput}" value="${label}" onchange="updateLabel(${idx}, this.value)" oninput="autoFitInput(this)">
-                    <button onclick="removeResource(${idx})" class="absolute top-0 right-0 text-red-400 hover:text-red-600 text-[10px] px-1">×</button>
+                    <div contenteditable="true" class="editable-header font-bold text-center text-slate-700 dark:text-slate-200" onblur="updateLabel(${idx}, this.innerText)">${label}</div>
+                    <button onclick="removeResource(${idx})" class="absolute top-0 right-0 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-[10px] shadow-sm transform translate-x-1 -translate-y-1 hover:bg-red-600">×</button>
                 </th>`;
             });
             theadHtml += `</tr>`;
@@ -346,28 +357,16 @@
                 let row = `<td class="p-2 sticky-col-1"><input type="text" class="${inputBase} font-bold" value="${c.name}" onchange="updateClusterName('${c.id}', this.value)" oninput="autoFitInput(this)"></td>`;
                 
                 resKeys.forEach((k, rIdx) => {
-                    // Check Limits for Config Table (Total Usage > Capacity)
                     const stats = getClusterUsageStats(c.id, k);
                     const isErr = stats.exceeded > 0;
                     const errClass = isErr ? 'input-error' : '';
-                    const idUnique = `cfg_${c.id}_${k}`; // Unique ID for event binding
-                    
-                    row += `<td class="p-2">
-                        <input id="${idUnique}" type="number" class="${inputBase} ${errClass}" value="${c[k]}" onchange="updateClusterCap('${c.id}', '${k}', this.value)" min="1" oninput="autoFitInput(this)">
-                    </td>`;
-                    
-                    // Bind Long Press after render (microtask)
-                    if(isErr) {
-                        setTimeout(() => {
-                            const el = document.getElementById(idUnique);
-                            if(el) bindLongPress(el, () => alert(getUnifiedWarning(rIdx, c.id)));
-                        }, 0);
-                    }
+                    const idUnique = `cfg_${c.id}_${k}`;
+                    row += `<td class="p-2"><input id="${idUnique}" type="number" class="${inputBase} ${errClass}" value="${c[k]}" onchange="updateClusterCap('${c.id}', '${k}', this.value)" min="1" oninput="autoFitInput(this)"></td>`;
+                    if(isErr) { setTimeout(() => { const el = document.getElementById(idUnique); if(el) bindLongPress(el, () => alert(getUnifiedWarning(rIdx, c.id))); }, 0); }
                 });
                 tbodyHtml += `<tr>${row}</tr>`;
             });
             table.querySelector('tbody').innerHTML = tbodyHtml;
-            // Fit all on render
             setTimeout(() => document.querySelectorAll('.autosize-input').forEach(autoFitInput), 10);
         }
 
@@ -387,8 +386,6 @@
             projects.forEach((p, idx) => {
                 let isProjectInTrouble = false;
                 let errorMessages = [];
-
-                // Check for errors to highlight Name field
                 resKeys.forEach((k, rIdx) => {
                     const stats = getClusterUsageStats(p.clusterId, k);
                     if (stats.exceeded > 0 && parseFloat(p[k]) > 0) {
@@ -402,54 +399,35 @@
                 const opts = clusterState.map(c => `<option value="${c.id}" ${c.id === p.clusterId ? 'selected' : ''}>${c.name}</option>`).join('');
                 
                 let row = `
-                    <td class="p-2 text-center sticky-col-1"><input type="color" value="${p.color}" onchange="updateProj(${idx}, 'color', this.value)"></td>
-                    <td class="p-2 sticky-col-2">
-                        <input id="${nameId}" type="text" class="${inputBase} ${nameErrorClass}" value="${p.name}" onchange="updateProj(${idx}, 'name', this.value)" oninput="autoFitInput(this)">
+                    <td class="p-2 text-center sticky-col-1">
+                        <!-- FIXED: Removed border/padding from color input wrapper -->
+                        <div class="w-6 h-6 mx-auto rounded overflow-hidden">
+                            <input type="color" value="${p.color}" onchange="updateProj(${idx}, 'color', this.value)" class="w-full h-full p-0 border-none cursor-pointer">
+                        </div>
                     </td>
+                    <td class="p-2 sticky-col-2"><input id="${nameId}" type="text" class="${inputBase} ${nameErrorClass}" value="${p.name}" onchange="updateProj(${idx}, 'name', this.value)" oninput="autoFitInput(this)"></td>
                     <td class="p-2"><select class="${inputBase}" onchange="updateProj(${idx}, 'clusterId', this.value)">${opts}</select></td>`;
                 
-                // Bind Name Long Press if trouble
-                if(isProjectInTrouble) {
-                    setTimeout(() => {
-                        const el = document.getElementById(nameId);
-                        // Show first relevant error
-                        if(el) bindLongPress(el, () => alert(errorMessages[0])); 
-                    }, 0);
-                }
+                if(isProjectInTrouble) { setTimeout(() => { const el = document.getElementById(nameId); if(el) bindLongPress(el, () => alert(errorMessages[0])); }, 0); }
 
                 resKeys.forEach((k, rIdx) => {
                     const stats = getClusterUsageStats(p.clusterId, k);
-                    // Highlight specific resource cell if it contributes to overflow
                     const isErr = stats.exceeded > 0 && (parseFloat(p[k]) > 0);
                     const inputErrClass = isErr ? 'input-error' : '';
                     const cellId = `proj_${idx}_${k}`;
-
-                    row += `<td class="p-2">
-                        <input id="${cellId}" type="number" class="${inputBase} ${inputErrClass}" value="${p[k]}" onchange="updateProj(${idx}, '${k}', this.value)" min="0" oninput="autoFitInput(this)">
-                    </td>`;
-
-                    if(isErr) {
-                        setTimeout(() => {
-                            const el = document.getElementById(cellId);
-                            if(el) bindLongPress(el, () => alert(getUnifiedWarning(rIdx, p.clusterId)));
-                        }, 0);
-                    }
+                    row += `<td class="p-2"><input id="${cellId}" type="number" class="${inputBase} ${inputErrClass}" value="${p[k]}" onchange="updateProj(${idx}, '${k}', this.value)" min="0" oninput="autoFitInput(this)"></td>`;
+                    if(isErr) { setTimeout(() => { const el = document.getElementById(cellId); if(el) bindLongPress(el, () => alert(getUnifiedWarning(rIdx, p.clusterId))); }, 0); }
                 });
                 
                 row += `<td class="p-2 text-center flex justify-center gap-1">
-                    <button class="bg-amber-500 text-white p-1.5 rounded hover:bg-amber-600 shadow" onclick="duplicateProj(${idx})">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
-                    </button>
-                    <button class="bg-red-500 text-white p-1.5 rounded hover:bg-red-600 shadow" onclick="removeProj(${idx})">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                    </button>
+                    <button class="bg-amber-500 text-white p-1.5 rounded hover:bg-amber-600 shadow" onclick="duplicateProj(${idx})"><svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button>
+                    <button class="bg-red-500 text-white p-1.5 rounded hover:bg-red-600 shadow" onclick="removeProj(${idx})"><svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
                 </td>`;
                 tbody.innerHTML += `<tr>${row}</tr>`;
             });
             setTimeout(() => document.querySelectorAll('.autosize-input').forEach(autoFitInput), 10);
         }
 
-        // --- CHART HELPERS ---
         function getCssVar(name) { return getComputedStyle(document.body).getPropertyValue(name).trim(); }
         function getStripePattern(color) {
             const c = document.createElement('canvas'); const x = c.getContext('2d');
@@ -458,7 +436,6 @@
             return c;
         }
 
-        // --- CHART GRID PLUGIN (Moved to afterDatasetsDraw to fix obstruction) ---
         const gridOverlayPlugin = {
             id: 'gridOverlay',
             afterDatasetsDraw(chart) {
@@ -488,9 +465,9 @@
             });
 
             projects.forEach(p => {
+                if(!usageMap[p.clusterId]) return;
                 let pts = []; let bgColors = [];
                 const cIndex = clusterState.findIndex(c => c.id === p.clusterId);
-                if(cIndex === -1) return;
                 const base = cIndex * 100;
 
                 resKeys.forEach((key, rIdx) => {
@@ -512,7 +489,6 @@
                 datasets.push({ 
                     label: p.name, data: pts, backgroundColor: bgColors,
                     barPercentage: 0.9, categoryPercentage: 0.9, grouped: false, order: 1,
-                    // Store logic for click event
                     overloadInfo: pts.map((pt, i) => {
                         if(!pt) return null;
                         const stats = getClusterUsageStats(p.clusterId, resKeys[i]);
@@ -533,7 +509,7 @@
                         if (elements.length > 0) {
                             const el = elements[0];
                             const ds = myChart.data.datasets[el.datasetIndex];
-                            const info = ds.overloadInfo[el.index];
+                            const info = ds.overloadInfo && ds.overloadInfo[el.index];
                             if(info) alert(getUnifiedWarning(info.rIdx, info.cId));
                         }
                     },
@@ -548,14 +524,16 @@
                             callbacks: {
                                 label: function(ctx) {
                                     if (ctx.dataset.label.startsWith('_BG_')) {
-                                        const cId = ctx.dataset.clusterId; const rIdx = ctx.dataIndex; const resKey = resKeys[rIdx];
-                                        const used = usageMap[cId][rIdx]; const total = clusterState.find(c => c.id === cId)[resKey];
+                                        const cId = ctx.dataset.clusterId; const rIdx = ctx.dataIndex; 
+                                        if(!usageMap[cId]) return '';
+                                        const total = clusterState.find(c => c.id === cId)[resKeys[rIdx]];
+                                        const used = usageMap[cId][rIdx]; 
                                         const freePct = Math.max(0, 100 - used); const freeUnits = (freePct/100)*total;
                                         return [`Available: ${freePct.toFixed(1)}%`, `${Math.floor(freeUnits)} / ${total}`];
                                     }
-                                    const raw = ctx.raw; const p = projects.find(proj => proj.name === ctx.dataset.label);
+                                    const p = projects.find(proj => proj.name === ctx.dataset.label);
                                     const val = p ? p[resKeys[ctx.dataIndex]] : 0;
-                                    return `${ctx.dataset.label}: ${(raw[1]-raw[0]).toFixed(1)}% (${val})`;
+                                    return `${ctx.dataset.label}: ${(ctx.raw[1]-ctx.raw[0]).toFixed(1)}% (${val})`;
                                 }
                             }
                         }
