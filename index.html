@@ -46,7 +46,7 @@
             max-width: 1400px; margin: 0 auto; width: 100%;
         }
 
-        /* ERROR BOX (For Debugging) */
+        /* ERROR BOX */
         #error-log {
             display: none;
             background: #ffebee; color: #c62828;
@@ -70,7 +70,6 @@
             font-weight: 700; white-space: nowrap; 
         }
 
-        /* CONTROLS GROUP */
         .controls-right { display: flex; gap: 8px; align-items: center; }
 
         /* BUTTONS */
@@ -78,12 +77,12 @@
             background-color: var(--accent); color: white; border: none; 
             padding: 8px 12px; border-radius: 4px; cursor: pointer; font-weight: 600; 
             font-size: 0.8rem; flex-shrink: 0; white-space: nowrap;
-            /* Improved touch target size */
             min-height: 32px;
         }
         .btn:hover { opacity: 0.9; }
         .btn-danger { background-color: #e74c3c; }
         .btn-update { background-color: #27ae60; } 
+        .btn-copy { background-color: #f39c12; color: white; } /* Orange for copy */
 
         .btn-icon {
             background: none; border: 1px solid var(--border); 
@@ -93,6 +92,10 @@
             transition: background 0.2s; flex-shrink: 0;
         }
         .btn-icon:hover { background: var(--border); }
+
+        /* ACTION BUTTONS IN TABLE */
+        .action-group { display: flex; gap: 4px; justify-content: center; }
+        .btn-sm { padding: 4px 8px; font-size: 0.8rem; min-height: 28px; }
 
         /* CARDS */
         .dashboard-grid { display: grid; grid-template-columns: 1fr; gap: 15px; }
@@ -122,7 +125,7 @@
         }
         table { 
             width: 100%; border-collapse: collapse; font-size: 0.85rem; 
-            min-width: 600px; /* Forces scroll on small screens */
+            min-width: 650px; /* Forces scroll on small screens */
             table-layout: fixed; 
         }
         th, td { 
@@ -131,7 +134,7 @@
         }
         th { background-color: var(--primary); color: var(--th-text); }
 
-        /* INPUTS - Critical for Mobile */
+        /* INPUTS */
         input, select { 
             width: 100%; 
             padding: 4px 6px; 
@@ -142,6 +145,15 @@
             height: 32px; 
         }
         
+        /* COLOR INPUT SPECIFIC */
+        input[type="color"] {
+            padding: 0; border: none; 
+            width: 24px; height: 24px; 
+            cursor: pointer; background: none;
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
         input.header-edit {
             background: rgba(255,255,255,0.1);
             border: 1px solid rgba(255,255,255,0.2);
@@ -164,10 +176,8 @@
 <body>
 
 <div class="container">
-    <!-- Error Log for debugging -->
     <div id="error-log"></div>
 
-    <!-- HEADER -->
     <div class="header-main">
         <div class="header-left">
             <h1>Server Utilisation</h1>
@@ -180,19 +190,17 @@
     </div>
     
     <div class="dashboard-grid">
-        <!-- CHART -->
         <div class="card">
             <h2>Live Utilization</h2>
             <div class="legend-box">
                 <span class="legend-indicator"></span> <strong>Grey</strong>: Free Space.<br>
-                <strong>Colors</strong>: Projects.
+                <strong>Colors</strong>: Projects. (Click color in table to change).
             </div>
             <div class="chart-wrapper">
                 <canvas id="utilizationChart"></canvas>
             </div>
         </div>
 
-        <!-- CONFIGURATION -->
         <div class="card">
             <h2>1. Configuration</h2>
             <div class="table-responsive">
@@ -203,7 +211,6 @@
             </div>
         </div>
 
-        <!-- PROJECTS -->
         <div class="card">
             <div class="sub-header">
                 <h2>2. Project Workloads</h2>
@@ -228,7 +235,6 @@
         return false;
     };
 
-    // --- MAIN EXECUTION WRAPPER ---
     document.addEventListener('DOMContentLoaded', () => {
         try {
             initApp();
@@ -239,20 +245,24 @@
         }
     });
 
-    // --- APP LOGIC ---
+    // --- STATE ---
     let clusterState = [];
     let projects = [];
     let resLabels = [];
     let myChart = null;
 
+    // --- DEFAULTS ---
     const initialClusters = [
         { id: 'c1', name: 'Cluster 1', vcpu: 100, ram: 500, storage_norm: 100, storage_fast: 20, vgpu: 10 },
         { id: 'c2', name: 'Cluster 2', vcpu: 100, ram: 500, storage_norm: 100, storage_fast: 20, vgpu: 10 },
         { id: 'c3', name: 'Cluster 3', vcpu: 200, ram: 1000, storage_norm: 200, storage_fast: 50, vgpu: 20 }
     ];
+    
+    // UPDATED: Now includes a workload for Cluster 2
     const initialProjects = [
         { id: 1, name: 'Web Portal', clusterId: 'c1', vcpu: 20, ram: 50, storage_norm: 10, storage_fast: 0, vgpu: 0, color: '#E74C3C' },
-        { id: 2, name: 'Data Lake', clusterId: 'c3', vcpu: 50, ram: 200, storage_norm: 50, storage_fast: 10, vgpu: 5, color: '#3498DB' }
+        { id: 2, name: 'API Service', clusterId: 'c2', vcpu: 30, ram: 64, storage_norm: 20, storage_fast: 5, vgpu: 2, color: '#F1C40F' },
+        { id: 3, name: 'Data Lake', clusterId: 'c3', vcpu: 50, ram: 200, storage_norm: 50, storage_fast: 10, vgpu: 5, color: '#3498DB' }
     ];
 
     const resKeys = ['vcpu', 'ram', 'storage_norm', 'storage_fast', 'vgpu'];
@@ -260,34 +270,24 @@
     const palette = ['#E74C3C', '#3498DB', '#F1C40F', '#9B59B6', '#2ECC71', '#E67E22', '#1ABC9C', '#34495E'];
 
     function initApp() {
-        // 1. Check Dependencies
-        if (typeof Chart === 'undefined') {
-            throw new Error("Chart.js failed to load. Check internet connection.");
-        }
+        if (typeof Chart === 'undefined') throw new Error("Chart.js failed to load.");
 
-        // 2. Attach Event Listeners
         document.getElementById('btnUpdate').addEventListener('click', forceUpdateApp);
         document.getElementById('btnReset').addEventListener('click', resetDefaults);
         document.getElementById('btnTheme').addEventListener('click', toggleTheme);
         document.getElementById('btnAddProject').addEventListener('click', addProject);
 
-        // 3. Load Data & Render
         if (!loadState()) {
-            resetDataToDefaults(false); // don't refresh UI yet
+            resetDataToDefaults(false); 
         }
-        
         refreshUI();
 
-        // 4. Register SW
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('sw.js').catch(e => console.log('SW Fail', e));
-        }
+        if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(console.error);
     }
 
-    // --- CORE FUNCTIONS ---
+    // --- CORE LOGIC ---
     async function forceUpdateApp() {
         if(!confirm("Update WebApp UI? (Data is safe)")) return;
-        
         if ('serviceWorker' in navigator) {
             const regs = await navigator.serviceWorker.getRegistrations();
             for (let reg of regs) await reg.unregister();
@@ -300,9 +300,7 @@
     }
 
     function resetDefaults() {
-        if(confirm("Reset all data to defaults?")) {
-            resetDataToDefaults(true);
-        }
+        if(confirm("Reset all data to defaults?")) resetDataToDefaults(true);
     }
 
     function resetDataToDefaults(shouldRefresh) {
@@ -315,20 +313,16 @@
 
     function loadState() {
         try {
-            const stored = localStorage.getItem('serverDashboardData_v6'); // Incremented version
+            const stored = localStorage.getItem('serverDashboardData_v7'); // Version bump
             if (!stored) return false;
             const data = JSON.parse(stored);
             if (!data.clusters || !data.projects) return false;
-
             clusterState = data.clusters;
             projects = data.projects;
             resLabels = data.labels || [...defaultLabels];
             if(data.theme) document.documentElement.setAttribute('data-theme', data.theme);
             return true;
-        } catch(e) {
-            console.error("Save file corrupted", e);
-            return false;
-        }
+        } catch(e) { return false; }
     }
 
     function saveState() {
@@ -338,33 +332,48 @@
             labels: resLabels,
             theme: document.documentElement.getAttribute('data-theme')
         };
-        localStorage.setItem('serverDashboardData_v6', JSON.stringify(data));
+        localStorage.setItem('serverDashboardData_v7', JSON.stringify(data));
     }
 
     function refreshUI() {
-        renderCapacityTable(); 
-        renderProjectTable(); 
-        updateChart();
+        renderCapacityTable(); renderProjectTable(); updateChart();
     }
 
     function toggleTheme() {
         const html = document.documentElement;
         const next = html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
         html.setAttribute('data-theme', next);
-        saveState(); 
-        updateChart(); // Chart.js needs re-render for colors
+        saveState(); updateChart();
     }
 
-    // --- DATA MANIPULATION ---
-    // Exposed globally so inline onchange works
+    // --- DATA FUNCTIONS ---
     window.updateClusterName = function(id, val) { clusterState.find(c => c.id === id).name = val; saveState(); renderProjectTable(); updateChart(); }
     window.updateClusterCap = function(id, key, val) { clusterState.find(c => c.id === id)[key] = parseFloat(val) || 1; saveState(); updateChart(); }
     window.updateLabel = function(idx, val) { resLabels[idx] = val; saveState(); renderProjectTable(); updateChart(); }
+    
     window.updateProj = function(idx, field, val) {
-        if(field !== 'name' && field !== 'clusterId') val = parseFloat(val) || 0;
+        if(field !== 'name' && field !== 'clusterId' && field !== 'color') val = parseFloat(val) || 0;
         projects[idx][field] = val; saveState(); updateChart();
     }
-    window.removeProj = function(idx) { projects.splice(idx, 1); saveState(); renderProjectTable(); updateChart(); }
+
+    window.removeProj = function(idx) { 
+        if(confirm('Delete project?')) {
+            projects.splice(idx, 1); saveState(); renderProjectTable(); updateChart(); 
+        }
+    }
+
+    // NEW: Duplicate Function
+    window.duplicateProj = function(idx) {
+        const original = projects[idx];
+        const copy = { 
+            ...original, 
+            id: Date.now() + Math.random(), // Ensure unique ID
+            name: original.name + " (Copy)" // Optional: indicate copy
+        };
+        // Insert immediately after original
+        projects.splice(idx + 1, 0, copy);
+        saveState(); renderProjectTable(); updateChart();
+    }
     
     function addProject() {
         projects.push({ id: Date.now(), name: 'New App', clusterId: 'c1', vcpu: 0, ram: 0, storage_norm: 0, storage_fast: 0, vgpu: 0, color: palette[projects.length % palette.length] });
@@ -393,11 +402,11 @@
     function renderProjectTable() {
         const table = document.getElementById('projectsTable');
         let theadHtml = `<tr>
-            <th class="col-color" style="width:30px"></th>
+            <th class="col-color" style="width:40px">Col</th>
             <th class="col-name" style="min-width:110px">Name</th>
             <th class="col-cluster" style="min-width:100px">Assigned</th>`;
         resLabels.forEach(label => theadHtml += `<th style="min-width:70px">${label}</th>`);
-        theadHtml += `<th class="col-action" style="width:40px"></th></tr>`;
+        theadHtml += `<th class="col-action" style="width:80px">Act</th></tr>`; // Act column wider for 2 buttons
         table.querySelector('thead').innerHTML = theadHtml;
 
         const tbody = document.getElementById('projectRows');
@@ -405,11 +414,20 @@
         projects.forEach((p, idx) => {
             const opts = clusterState.map(c => `<option value="${c.id}" ${c.id === p.clusterId ? 'selected' : ''}>${c.name}</option>`).join('');
             let row = `
-                <td style="text-align:center"><div style="width:14px;height:14px;background:${p.color};border-radius:3px;margin:0 auto;"></div></td>
+                <td style="text-align:center">
+                    <input type="color" value="${p.color}" onchange="updateProj(${idx}, 'color', this.value)">
+                </td>
                 <td><input type="text" value="${p.name}" onchange="updateProj(${idx}, 'name', this.value)"></td>
                 <td><select onchange="updateProj(${idx}, 'clusterId', this.value)">${opts}</select></td>`;
             resKeys.forEach(k => row += `<td><input type="number" value="${p[k]}" onchange="updateProj(${idx}, '${k}', this.value)" min="0"></td>`);
-            row += `<td style="text-align:center"><button class="btn btn-danger" onclick="removeProj(${idx})">×</button></td>`;
+            
+            // Buttons: Duplicate and Delete
+            row += `<td style="text-align:center">
+                <div class="action-group">
+                    <button class="btn btn-copy btn-sm" onclick="duplicateProj(${idx})" title="Duplicate">📄</button>
+                    <button class="btn btn-danger btn-sm" onclick="removeProj(${idx})" title="Delete">×</button>
+                </div>
+            </td>`;
             tbody.innerHTML += `<tr>${row}</tr>`;
         });
     }
