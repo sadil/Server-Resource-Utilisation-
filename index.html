@@ -2,7 +2,12 @@
 <html lang="en" data-theme="light">
 <head>
     <meta charset="UTF-8">
-    <!-- UPDATED VIEWPORT: Starts zoomed out (0.7) to show full context -->
+    <!-- PREVENT BROWSER CACHING -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+
+    <!-- VIEWPORT: Zoomed out (0.7) for full view -->
     <meta name="viewport" content="width=device-width, initial-scale=0.7, maximum-scale=5.0, user-scalable=yes">
     <title>Server Utilisation</title>
     
@@ -137,7 +142,7 @@
         /* INPUTS */
         input, select { 
             width: 100%; 
-            padding: 4px 2px; /* UPDATED: Less padding to show more text */
+            padding: 4px 2px;
             border: 1px solid var(--input-border); border-radius: 3px; 
             background-color: var(--input-bg); color: var(--text); 
             font-size: 16px; 
@@ -145,15 +150,12 @@
             height: 32px; 
         }
         
-        /* HIDE SPIN BUTTONS (Arrows) to show more number text */
         input::-webkit-outer-spin-button,
         input::-webkit-inner-spin-button {
             -webkit-appearance: none;
             margin: 0;
         }
-        input[type=number] {
-            -moz-appearance: textfield;
-        }
+        input[type=number] { -moz-appearance: textfield; }
 
         input[type="color"] {
             padding: 0; border: none; 
@@ -200,7 +202,6 @@
     
     <div class="dashboard-grid">
         <div class="card">
-            <!-- UPDATED TITLE -->
             <h2>Utilization</h2>
             <div class="legend-box">
                 <span class="legend-indicator"></span> <strong>Grey</strong>: Free Space.<br>
@@ -293,7 +294,13 @@
         }
         refreshUI();
 
-        if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(console.error);
+        // SERVICE WORKER LOGIC - Forces Update
+        if ('serviceWorker' in navigator) {
+            // Add timestamp to force update check
+            navigator.serviceWorker.register('sw.js?v=' + Date.now()).then(registration => {
+                registration.update(); // Explicitly check for new version
+            }).catch(console.error);
+        }
     }
 
     async function forceUpdateApp() {
