@@ -2,7 +2,6 @@
 <html lang="en" data-theme="light">
 <head>
     <meta charset="UTF-8">
-    <!-- FIXED: Removed user-scalable=no to allow zooming -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Server Utilisation</title>
     
@@ -16,168 +15,166 @@
         :root {
             --primary: #2c3e50; --accent: #2980b9; --bg: #f4f7f6; --card-bg: #ffffff;
             --text: #333333; --text-muted: #666666; --border: #e0e0e0;
-            --input-bg: #ffffff; --input-border: #cccccc; --chart-grid-strong: #333333;
-            --chart-grid-weak: #e0e0e0; --chart-text: #2c3e50; 
+            --input-bg: #ffffff; --input-border: #cccccc; 
+            --chart-grid-strong: #333333; --chart-grid-weak: #e0e0e0; --chart-text: #2c3e50; 
             --grey-bar: #e0e0e0; 
             --th-text: #ffffff;
         }
         [data-theme="dark"] {
             --primary: #34495e; --accent: #3498db; --bg: #1a1a1a; --card-bg: #2c2c2c;
             --text: #f0f0f0; --text-muted: #aaaaaa; --border: #444444;
-            --input-bg: #3d3d3d; --input-border: #555555; --chart-grid-strong: #aaaaaa;
-            --chart-grid-weak: #444444; --chart-text: #dddddd; 
+            --input-bg: #3d3d3d; --input-border: #555555; 
+            --chart-grid-strong: #aaaaaa; --chart-grid-weak: #444444; --chart-text: #dddddd; 
             --grey-bar: #4a4a4a; 
             --th-text: #eeeeee;
         }
 
-        /* LAYOUT BASICS */
+        /* GLOBAL RESET */
+        * { box-sizing: border-box; }
+
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            margin: 0; 
-            padding: 10px; /* Reduced padding for mobile */
-            background-color: var(--bg); 
-            color: var(--text);
+            margin: 0; padding: 10px;
+            background-color: var(--bg); color: var(--text);
             transition: background-color 0.3s, color 0.3s;
-            overflow-x: hidden; /* Prevent body scroll, let children scroll */
+            overflow-x: hidden; /* Prevent horizontal scroll on page level */
+            width: 100vw;
         }
 
         .container { 
-            max-width: 1400px; 
-            margin: 0 auto; 
-            width: 100%;
-            box-sizing: border-box;
+            max-width: 1400px; margin: 0 auto; width: 100%;
         }
 
-        /* HEADER - FORCED SINGLE LINE */
+        /* HEADER */
         .header-main { 
-            display: flex; 
-            justify-content: space-between; 
-            align-items: center; 
-            margin-bottom: 15px; 
-            width: 100%;
-            gap: 5px; /* Tight gap */
+            display: flex; justify-content: space-between; align-items: center; 
+            margin-bottom: 10px; width: 100%; gap: 5px;
         }
         
         .header-left {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            flex: 1; 
-            min-width: 0; /* Allows text truncation if absolutely needed */
+            display: flex; align-items: center; gap: 8px; flex: 1; overflow: hidden;
         }
 
         h1 { 
-            font-size: 1.4rem; 
-            color: var(--accent); 
-            margin: 0; 
-            font-weight: 700;
-            white-space: nowrap;
+            font-size: 1.2rem; color: var(--accent); margin: 0; 
+            font-weight: 700; white-space: nowrap; 
         }
+
+        /* CONTROLS GROUP */
+        .controls-right { display: flex; gap: 8px; align-items: center; }
 
         /* BUTTONS */
         .btn { 
             background-color: var(--accent); color: white; border: none; 
             padding: 8px 12px; border-radius: 4px; cursor: pointer; font-weight: 600; 
-            font-size: 0.9rem; flex-shrink: 0; 
-            white-space: nowrap;
+            font-size: 0.85rem; flex-shrink: 0; white-space: nowrap;
         }
         .btn:hover { opacity: 0.9; }
         .btn-danger { background-color: #e74c3c; }
+        .btn-update { background-color: #27ae60; } /* Green for update */
 
         .btn-icon {
             background: none; border: 1px solid var(--border); 
-            font-size: 1.2rem; padding: 0; border-radius: 50%; width: 36px; height: 36px;
+            font-size: 1.1rem; padding: 0; border-radius: 50%; width: 34px; height: 34px;
             cursor: pointer; color: var(--text);
             display: flex; align-items: center; justify-content: center;
-            transition: background 0.2s;
-            flex-shrink: 0;
-            margin-left: 5px;
+            transition: background 0.2s; flex-shrink: 0;
         }
+        .btn-icon:hover { background: var(--border); }
 
         /* CARDS */
         .dashboard-grid { display: grid; grid-template-columns: 1fr; gap: 15px; }
         .card { 
-            background: var(--card-bg); padding: 15px; 
+            background: var(--card-bg); padding: 10px; 
             border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); 
-            border: 1px solid var(--border); 
-            width: 100%; box-sizing: border-box;
+            border: 1px solid var(--border); width: 100%; 
         }
-        h2 { font-size: 1.1rem; margin: 0 0 10px 0; color: var(--text); }
+        h2 { font-size: 1rem; margin: 0 0 10px 0; color: var(--text); }
 
         /* LEGEND */
         .legend-indicator {
-            display: inline-block;
-            width: 12px; height: 12px;
-            background-color: var(--grey-bar);
-            margin-right: 5px;
-            border: 1px solid var(--border);
-            vertical-align: middle;
+            display: inline-block; width: 12px; height: 12px;
+            background-color: var(--grey-bar); margin-right: 5px;
+            border: 1px solid var(--border); vertical-align: middle;
         }
         .legend-box { 
-            background: rgba(0,0,0,0.05); padding: 10px; 
-            border-left: 4px solid var(--accent); margin-bottom: 15px; 
-            font-size: 0.85rem; color: var(--text-muted); 
-            line-height: 1.4;
+            background: rgba(0,0,0,0.05); padding: 8px; 
+            border-left: 4px solid var(--accent); margin-bottom: 10px; 
+            font-size: 0.8rem; color: var(--text-muted); line-height: 1.3;
         }
 
-        /* TABLES & SCROLLING */
+        /* TABLES */
         .table-responsive { 
-            width: 100%; 
-            overflow-x: auto; 
-            -webkit-overflow-scrolling: touch; 
-            margin-bottom: 5px;
+            width: 100%; overflow-x: auto; 
+            -webkit-overflow-scrolling: touch; margin-bottom: 5px;
         }
         table { 
             width: 100%; border-collapse: collapse; font-size: 0.85rem; 
-            min-width: 700px; /* Allows scrolling on small screens */
+            min-width: 600px; /* Small enough for phones but forces scroll */
             table-layout: fixed; 
         }
-        th, td { text-align: left; padding: 8px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+        th, td { 
+            text-align: left; padding: 6px; 
+            border-bottom: 1px solid var(--border); vertical-align: middle; 
+        }
         th { background-color: var(--primary); color: var(--th-text); }
 
-        /* INPUTS */
+        /* INPUTS - The Critical Fix for Mobile */
         input, select { 
-            width: 100%; padding: 6px; box-sizing: border-box;
-            border: 1px solid var(--input-border); border-radius: 4px; 
+            width: 100%; 
+            padding: 4px 6px; 
+            border: 1px solid var(--input-border); border-radius: 3px; 
             background-color: var(--input-bg); color: var(--text); 
-            font-size: 0.85rem; 
+            /* 16px font prevents iOS zoom on focus */
+            font-size: 16px; 
+            /* Remove iOS default styling */
+            -webkit-appearance: none; 
+            height: 32px; /* Consistent height */
         }
+        
+        /* Specific override for header inputs to look nice */
         input.header-edit {
             background: rgba(255,255,255,0.1);
             border: 1px solid rgba(255,255,255,0.2);
             color: var(--th-text); font-weight: bold; text-align: center;
         }
 
-        .chart-wrapper { position: relative; height: 350px; width: 100%; }
+        .chart-wrapper { position: relative; height: 320px; width: 100%; }
         .sub-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
 
         /* MOBILE OPTIMIZATIONS */
         @media (max-width: 600px) {
-            /* Fix Header sizes to fit on one line */
-            h1 { font-size: 1.1rem; } 
-            .btn { font-size: 0.75rem; padding: 6px 10px; }
-            .btn-icon { width: 32px; height: 32px; font-size: 1rem; }
-            .header-left { gap: 8px; }
+            h1 { font-size: 1rem; }
+            /* Hide the text "Reset Defaults" on very small screens, keep button logic via icon? 
+               Or just make it smaller. */
+            .btn { padding: 6px 8px; font-size: 0.75rem; }
             
-            /* Adjust padding */
-            .card { padding: 10px; }
-            body { padding: 8px; }
+            /* Make update button smaller/icon only if needed */
+            .header-left { gap: 5px; }
+            .controls-right { gap: 5px; }
+
+            /* On mobile, standard inputs need 16px to stop zoom, 
+               but we reduce padding to fit content */
+            input, select { padding: 0 4px; }
             
-            /* Allow vertical scroll, but horizontal is handled by table-responsive */
-            .chart-wrapper { height: 300px; }
+            /* Reduce table cell padding to squeeze more data in view */
+            th, td { padding: 4px; }
         }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <!-- TOP HEADER -->
+    <!-- HEADER -->
     <div class="header-main">
         <div class="header-left">
             <h1>Server Utilisation</h1>
-            <button class="btn btn-danger" onclick="resetDefaults()">Reset Defaults</button>
+            <button class="btn btn-update" onclick="forceUpdateApp()" title="Reload Update">↻ Update</button>
+            <button class="btn btn-danger" onclick="resetDefaults()">Reset</button>
         </div>
-        <button class="btn-icon" onclick="toggleTheme()" aria-label="Toggle Dark Mode">🌗</button>
+        <div class="controls-right">
+            <button class="btn-icon" onclick="toggleTheme()" aria-label="Toggle Dark Mode">🌗</button>
+        </div>
     </div>
     
     <div class="dashboard-grid">
@@ -185,9 +182,8 @@
         <div class="card">
             <h2>Live Utilization</h2>
             <div class="legend-box">
-                The bar is split into 3 sections. 
-                <span class="legend-indicator"></span> 
-                <strong>Grey</strong> is Free Space. Colored blocks are Projects.
+                <span class="legend-indicator"></span> <strong>Grey</strong>: Free Space.<br>
+                <strong>Colors</strong>: Projects.
             </div>
             <div class="chart-wrapper">
                 <canvas id="utilizationChart"></canvas>
@@ -209,7 +205,7 @@
         <div class="card">
             <div class="sub-header">
                 <h2>2. Project Workloads</h2>
-                <button class="btn" onclick="addProject()">+ Add Project</button>
+                <button class="btn" onclick="addProject()">+ Add</button>
             </div>
             <div class="table-responsive">
                 <table id="projectsTable">
@@ -222,16 +218,39 @@
 </div>
 
 <script>
+    // --- APP UPDATE LOGIC ---
+    // Registers SW and handles "Force Update"
     if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('sw.js').catch(console.error);
     }
 
+    async function forceUpdateApp() {
+        if(!confirm("Update WebApp UI? (Your data is safe)")) return;
+        
+        // 1. Unregister Service Workers
+        if ('serviceWorker' in navigator) {
+            const registrations = await navigator.serviceWorker.getRegistrations();
+            for (let registration of registrations) {
+                await registration.unregister();
+            }
+        }
+        
+        // 2. Clear Caches (HTML/JS)
+        if ('caches' in window) {
+            const keys = await caches.keys();
+            await Promise.all(keys.map(key => caches.delete(key)));
+        }
+        
+        // 3. Force Reload
+        window.location.reload(true);
+    }
+
+    // --- DATA & STATE ---
     const initialClusters = [
         { id: 'c1', name: 'Cluster 1', vcpu: 100, ram: 500, storage_norm: 100, storage_fast: 20, vgpu: 10 },
         { id: 'c2', name: 'Cluster 2', vcpu: 100, ram: 500, storage_norm: 100, storage_fast: 20, vgpu: 10 },
         { id: 'c3', name: 'Cluster 3', vcpu: 200, ram: 1000, storage_norm: 200, storage_fast: 50, vgpu: 20 }
     ];
-    
     const initialProjects = [
         { id: 1, name: 'Web Portal', clusterId: 'c1', vcpu: 20, ram: 50, storage_norm: 10, storage_fast: 0, vgpu: 0, color: '#E74C3C' },
         { id: 2, name: 'Data Lake', clusterId: 'c3', vcpu: 50, ram: 200, storage_norm: 50, storage_fast: 10, vgpu: 5, color: '#3498DB' }
@@ -246,6 +265,7 @@
     let resLabels = [];
     let myChart = null;
 
+    // --- STORAGE ---
     function saveState() {
         const data = {
             clusters: clusterState,
@@ -253,11 +273,11 @@
             labels: resLabels,
             theme: document.documentElement.getAttribute('data-theme')
         };
-        localStorage.setItem('serverDashboardData_v4', JSON.stringify(data));
+        localStorage.setItem('serverDashboardData_v5', JSON.stringify(data));
     }
 
     function loadState() {
-        const stored = localStorage.getItem('serverDashboardData_v4');
+        const stored = localStorage.getItem('serverDashboardData_v5');
         if (stored) {
             try {
                 const data = JSON.parse(stored);
@@ -272,12 +292,11 @@
     }
 
     function resetDefaults() {
-        if(confirm("Reset everything to default? This cannot be undone.")) {
+        if(confirm("Reset data to defaults?")) {
             clusterState = JSON.parse(JSON.stringify(initialClusters));
             projects = JSON.parse(JSON.stringify(initialProjects));
             resLabels = [...defaultLabels];
-            saveState();
-            refreshUI();
+            saveState(); refreshUI();
         }
     }
 
@@ -291,62 +310,37 @@
     }
 
     function refreshUI() {
-        renderCapacityTable();
-        renderProjectTable();
-        updateChart();
+        renderCapacityTable(); renderProjectTable(); updateChart();
     }
 
     function toggleTheme() {
         const html = document.documentElement;
         const next = html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
         html.setAttribute('data-theme', next);
-        saveState();
-        updateChart();
-    }
-
-    // --- UPDATES ---
-    function updateClusterName(id, val) {
-        clusterState.find(c => c.id === id).name = val;
-        saveState(); renderProjectTable(); updateChart();
-    }
-
-    function updateClusterCap(id, key, val) {
-        clusterState.find(c => c.id === id)[key] = parseFloat(val) || 1;
         saveState(); updateChart();
     }
 
-    function updateLabel(idx, val) {
-        resLabels[idx] = val;
-        saveState(); renderProjectTable(); updateChart();
-    }
-
+    // --- DATA UPDATES ---
+    function updateClusterName(id, val) { clusterState.find(c => c.id === id).name = val; saveState(); renderProjectTable(); updateChart(); }
+    function updateClusterCap(id, key, val) { clusterState.find(c => c.id === id)[key] = parseFloat(val) || 1; saveState(); updateChart(); }
+    function updateLabel(idx, val) { resLabels[idx] = val; saveState(); renderProjectTable(); updateChart(); }
+    
     function updateProj(idx, field, val) {
         if(field !== 'name' && field !== 'clusterId') val = parseFloat(val) || 0;
-        projects[idx][field] = val;
-        saveState(); updateChart();
+        projects[idx][field] = val; saveState(); updateChart();
     }
-
     function addProject() {
-        projects.push({ 
-            id: Date.now(), name: 'New App', clusterId: 'c1', 
-            vcpu: 0, ram: 0, storage_norm: 0, storage_fast: 0, vgpu: 0, 
-            color: palette[projects.length % palette.length] 
-        });
+        projects.push({ id: Date.now(), name: 'New App', clusterId: 'c1', vcpu: 0, ram: 0, storage_norm: 0, storage_fast: 0, vgpu: 0, color: palette[projects.length % palette.length] });
         saveState(); renderProjectTable(); updateChart();
     }
-
-    function removeProj(idx) {
-        projects.splice(idx, 1);
-        saveState(); renderProjectTable(); updateChart();
-    }
+    function removeProj(idx) { projects.splice(idx, 1); saveState(); renderProjectTable(); updateChart(); }
 
     // --- RENDER TABLES ---
     function renderCapacityTable() {
         const table = document.getElementById('capacityTable');
-        
-        let theadHtml = `<tr><th class="col-name" style="min-width:120px">Cluster Name</th>`;
+        let theadHtml = `<tr><th class="col-name" style="min-width:110px">Cluster Name</th>`;
         resLabels.forEach((label, idx) => {
-            theadHtml += `<th style="min-width:100px"><input type="text" class="header-edit" value="${label}" onchange="updateLabel(${idx}, this.value)"></th>`;
+            theadHtml += `<th style="min-width:80px"><input type="text" class="header-edit" value="${label}" onchange="updateLabel(${idx}, this.value)"></th>`;
         });
         theadHtml += `</tr>`;
         table.querySelector('thead').innerHTML = theadHtml;
@@ -354,9 +348,7 @@
         let tbodyHtml = '';
         clusterState.forEach(c => {
             let row = `<td><input type="text" value="${c.name}" onchange="updateClusterName('${c.id}', this.value)" style="font-weight:bold"></td>`;
-            resKeys.forEach(k => {
-                row += `<td><input type="number" value="${c[k]}" onchange="updateClusterCap('${c.id}', '${k}', this.value)" min="1"></td>`;
-            });
+            resKeys.forEach(k => row += `<td><input type="number" value="${c[k]}" onchange="updateClusterCap('${c.id}', '${k}', this.value)" min="1"></td>`);
             tbodyHtml += `<tr>${row}</tr>`;
         });
         table.querySelector('tbody').innerHTML = tbodyHtml;
@@ -364,60 +356,44 @@
 
     function renderProjectTable() {
         const table = document.getElementById('projectsTable');
-        
         let theadHtml = `<tr>
-            <th class="col-color" style="width:40px">Color</th>
-            <th class="col-name" style="min-width:120px">Project Name</th>
-            <th class="col-cluster" style="min-width:100px">Assigned To</th>`;
-        
-        resLabels.forEach(label => theadHtml += `<th style="min-width:80px">${label}</th>`);
-        theadHtml += `<th class="col-action" style="width:50px"></th></tr>`;
+            <th class="col-color" style="width:30px"></th>
+            <th class="col-name" style="min-width:110px">Name</th>
+            <th class="col-cluster" style="min-width:100px">Assigned</th>`;
+        resLabels.forEach(label => theadHtml += `<th style="min-width:70px">${label}</th>`);
+        theadHtml += `<th class="col-action" style="width:40px"></th></tr>`;
         table.querySelector('thead').innerHTML = theadHtml;
 
         const tbody = document.getElementById('projectRows');
         tbody.innerHTML = '';
         projects.forEach((p, idx) => {
             const opts = clusterState.map(c => `<option value="${c.id}" ${c.id === p.clusterId ? 'selected' : ''}>${c.name}</option>`).join('');
-            
             let row = `
-                <td style="text-align:center"><div style="width:16px;height:16px;background:${p.color};border-radius:3px;margin:0 auto;"></div></td>
+                <td style="text-align:center"><div style="width:14px;height:14px;background:${p.color};border-radius:3px;margin:0 auto;"></div></td>
                 <td><input type="text" value="${p.name}" onchange="updateProj(${idx}, 'name', this.value)"></td>
                 <td><select onchange="updateProj(${idx}, 'clusterId', this.value)">${opts}</select></td>`;
-            
-            resKeys.forEach(k => {
-                row += `<td><input type="number" value="${p[k]}" onchange="updateProj(${idx}, '${k}', this.value)" min="0"></td>`;
-            });
-
+            resKeys.forEach(k => row += `<td><input type="number" value="${p[k]}" onchange="updateProj(${idx}, '${k}', this.value)" min="0"></td>`);
             row += `<td style="text-align:center"><button class="btn btn-danger" onclick="removeProj(${idx})">×</button></td>`;
             tbody.innerHTML += `<tr>${row}</tr>`;
         });
     }
 
-    // --- CHART ---
     function getThemeColor(v) { return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); }
 
     function updateChart() {
         const ctx = document.getElementById('utilizationChart').getContext('2d');
-        
-        let usageMap = {};
-        clusterState.forEach(c => usageMap[c.id] = Array(resKeys.length).fill(0));
-        let offsets = Array(resKeys.length).fill(0).map(() => ({}));
-        clusterState.forEach(c => offsets.forEach(row => row[c.id] = 0));
-
+        let usageMap = {}; clusterState.forEach(c => usageMap[c.id] = Array(resKeys.length).fill(0));
+        let offsets = Array(resKeys.length).fill(0).map(() => ({})); clusterState.forEach(c => offsets.forEach(row => row[c.id] = 0));
         let datasets = [];
 
-        // Backgrounds
         clusterState.forEach((c, i) => {
             datasets.push({
-                label: `_BG_${c.id}`,
-                data: resKeys.map(() => [i*100, (i*100)+100]),
-                backgroundColor: getThemeColor('--grey-bar'),
-                barPercentage: 0.9, categoryPercentage: 0.9, grouped: false, order: 10,
+                label: `_BG_${c.id}`, data: resKeys.map(() => [i*100, (i*100)+100]),
+                backgroundColor: getThemeColor('--grey-bar'), barPercentage: 0.9, categoryPercentage: 0.9, grouped: false, order: 10,
                 clusterId: c.id, clusterName: c.name
             });
         });
 
-        // Projects
         projects.forEach(p => {
             let pts = [];
             const cIndex = clusterState.findIndex(c => c.id === p.clusterId);
@@ -426,25 +402,16 @@
             const clusterObj = clusterState[cIndex];
 
             resKeys.forEach((key, rIdx) => {
-                const cap = clusterObj[key];
-                const pct = (p[key] / cap) * 100;
-                let start = base + offsets[rIdx][p.clusterId];
-                let end = start + pct;
+                const cap = clusterObj[key]; const pct = (p[key] / cap) * 100;
+                let start = base + offsets[rIdx][p.clusterId]; let end = start + pct;
                 if(end > base + 100) end = base + 100;
-                
                 pts.push((pct > 0 && start < end) ? [start, end] : null);
-                usageMap[p.clusterId][rIdx] += pct;
-                offsets[rIdx][p.clusterId] += pct;
+                usageMap[p.clusterId][rIdx] += pct; offsets[rIdx][p.clusterId] += pct;
             });
-
-            datasets.push({
-                label: p.name, data: pts, backgroundColor: p.color,
-                barPercentage: 0.9, categoryPercentage: 0.9, grouped: false, order: 1
-            });
+            datasets.push({ label: p.name, data: pts, backgroundColor: p.color, barPercentage: 0.9, categoryPercentage: 0.9, grouped: false, order: 1 });
         });
 
         if (myChart) myChart.destroy();
-        
         myChart = new Chart(ctx, {
             type: 'bar',
             data: { labels: resLabels, datasets: datasets },
@@ -456,44 +423,22 @@
                         ticks: { color: getThemeColor('--chart-text'), callback: v => (v===0)?'0%':(v%100===0)?'|':(v===300)?'100%':(v%100)+'%' }
                     },
                     x2: { position: 'top', min: 0, max: 300, grid: { display: false },
-                        ticks: { color: getThemeColor('--chart-text'), font: { weight: 'bold', size: 14 }, 
-                        callback: v => {
-                            if(v===50) return clusterState[0]?.name || '';
-                            if(v===150) return clusterState[1]?.name || '';
-                            if(v===250) return clusterState[2]?.name || '';
-                            return '';
-                        }}
+                        ticks: { color: getThemeColor('--chart-text'), font: { weight: 'bold', size: 12 }, 
+                        callback: v => (v===50)?clusterState[0]?.name:(v===150)?clusterState[1]?.name:(v===250)?clusterState[2]?.name:'' }
                     },
-                    y: { stacked: false, ticks: { color: getThemeColor('--chart-text') } }
+                    y: { stacked: false, ticks: { color: getThemeColor('--chart-text'), font: {size: 11} } }
                 },
                 plugins: {
-                    legend: { labels: { filter: i => !i.text.startsWith('_BG_'), color: getThemeColor('--chart-text') } },
+                    legend: { display: false }, // Hidden on mobile to save space
                     tooltip: {
                         callbacks: {
                             label: function(ctx) {
                                 if (ctx.dataset.label.startsWith('_BG_')) {
-                                    const cId = ctx.dataset.clusterId;
-                                    const rIdx = ctx.dataIndex;
-                                    const resKey = resKeys[rIdx];
-                                    const used = usageMap[cId][rIdx];
-                                    const total = clusterState.find(c => c.id === cId)[resKey];
-                                    const freePct = Math.max(0, 100 - used);
-                                    const freeUnits = (freePct/100)*total;
-                                    return [`Available: ${freePct.toFixed(1)}%`, `Units: ${Math.floor(freeUnits)} / ${total}`];
+                                    const cId = ctx.dataset.clusterId; const rIdx = ctx.dataIndex; const resKey = resKeys[rIdx];
+                                    const used = usageMap[cId][rIdx]; const total = clusterState.find(c => c.id === cId)[resKey];
+                                    const freePct = Math.max(0, 100 - used); const freeUnits = (freePct/100)*total;
+                                    return [`Available: ${freePct.toFixed(1)}%`, `${Math.floor(freeUnits)} / ${total}`];
                                 }
-                                const raw = ctx.raw;
-                                const p = projects.find(proj => proj.name === ctx.dataset.label);
+                                const raw = ctx.raw; const p = projects.find(proj => proj.name === ctx.dataset.label);
                                 const val = p ? p[resKeys[ctx.dataIndex]] : 0;
-                                return `${ctx.dataset.label}: ${(raw[1]-raw[0]).toFixed(1)}% used (${val})`;
-                            }
-                        }
-                    }
-                }
-            }
-        });
-    }
-
-    init();
-</script>
-</body>
-</html>
+                                return `${ctx.dataset.label}: ${(raw[1]-raw[0]).toFixed(1)}% (${val})`;
