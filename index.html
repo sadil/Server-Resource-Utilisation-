@@ -442,3 +442,15 @@
                                 const raw = ctx.raw; const p = projects.find(proj => proj.name === ctx.dataset.label);
                                 const val = p ? p[resKeys[ctx.dataIndex]] : 0;
                                 return `${ctx.dataset.label}: ${(raw[1]-raw[0]).toFixed(1)}% (${val})`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    init();
+</script>
+</body>
+</html>
