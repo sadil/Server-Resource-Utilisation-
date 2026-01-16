@@ -9,8 +9,8 @@
     <meta name="theme-color" content="#2c3e50">
     <link rel="apple-touch-icon" href="icon-192.png">
 
-    <!-- Chart.js Library -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Chart.js Library: Added crossorigin for better error handling -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js" crossorigin="anonymous"></script>
     
     <style>
         :root {
@@ -82,7 +82,7 @@
         .btn:hover { opacity: 0.9; }
         .btn-danger { background-color: #e74c3c; }
         .btn-update { background-color: #27ae60; } 
-        .btn-copy { background-color: #f39c12; color: white; } /* Orange for copy */
+        .btn-copy { background-color: #f39c12; color: white; } 
 
         .btn-icon {
             background: none; border: 1px solid var(--border); 
@@ -125,7 +125,7 @@
         }
         table { 
             width: 100%; border-collapse: collapse; font-size: 0.85rem; 
-            min-width: 650px; /* Forces scroll on small screens */
+            min-width: 650px; 
             table-layout: fixed; 
         }
         th, td { 
@@ -140,12 +140,11 @@
             padding: 4px 6px; 
             border: 1px solid var(--input-border); border-radius: 3px; 
             background-color: var(--input-bg); color: var(--text); 
-            font-size: 16px; /* Prevents iOS zoom */
+            font-size: 16px; 
             -webkit-appearance: none; 
             height: 32px; 
         }
         
-        /* COLOR INPUT SPECIFIC */
         input[type="color"] {
             padding: 0; border: none; 
             width: 24px; height: 24px; 
@@ -229,6 +228,11 @@
 <script>
     // --- GLOBAL ERROR HANDLER ---
     window.onerror = function(msg, url, line) {
+        // Filter out generic script errors (usually CORS or Extension related)
+        if (msg === 'Script error.' || msg === 'Script error') {
+            return true; // Suppress it
+        }
+
         const errDiv = document.getElementById('error-log');
         errDiv.style.display = 'block';
         errDiv.innerHTML = `<strong>Error:</strong> ${msg} (Line: ${line})`;
@@ -258,7 +262,6 @@
         { id: 'c3', name: 'Cluster 3', vcpu: 200, ram: 1000, storage_norm: 200, storage_fast: 50, vgpu: 20 }
     ];
     
-    // UPDATED: Now includes a workload for Cluster 2
     const initialProjects = [
         { id: 1, name: 'Web Portal', clusterId: 'c1', vcpu: 20, ram: 50, storage_norm: 10, storage_fast: 0, vgpu: 0, color: '#E74C3C' },
         { id: 2, name: 'API Service', clusterId: 'c2', vcpu: 30, ram: 64, storage_norm: 20, storage_fast: 5, vgpu: 2, color: '#F1C40F' },
@@ -270,7 +273,11 @@
     const palette = ['#E74C3C', '#3498DB', '#F1C40F', '#9B59B6', '#2ECC71', '#E67E22', '#1ABC9C', '#34495E'];
 
     function initApp() {
-        if (typeof Chart === 'undefined') throw new Error("Chart.js failed to load.");
+        if (typeof Chart === 'undefined') {
+            document.getElementById('error-log').style.display = 'block';
+            document.getElementById('error-log').innerHTML = '<strong>Network Error:</strong> Chart.js failed to load. Check your internet connection.';
+            return;
+        }
 
         document.getElementById('btnUpdate').addEventListener('click', forceUpdateApp);
         document.getElementById('btnReset').addEventListener('click', resetDefaults);
@@ -313,7 +320,7 @@
 
     function loadState() {
         try {
-            const stored = localStorage.getItem('serverDashboardData_v7'); // Version bump
+            const stored = localStorage.getItem('serverDashboardData_v7'); 
             if (!stored) return false;
             const data = JSON.parse(stored);
             if (!data.clusters || !data.projects) return false;
@@ -362,15 +369,13 @@
         }
     }
 
-    // NEW: Duplicate Function
     window.duplicateProj = function(idx) {
         const original = projects[idx];
         const copy = { 
             ...original, 
-            id: Date.now() + Math.random(), // Ensure unique ID
-            name: original.name + " (Copy)" // Optional: indicate copy
+            id: Date.now() + Math.random(), 
+            name: original.name + " (Copy)"
         };
-        // Insert immediately after original
         projects.splice(idx + 1, 0, copy);
         saveState(); renderProjectTable(); updateChart();
     }
@@ -406,7 +411,7 @@
             <th class="col-name" style="min-width:110px">Name</th>
             <th class="col-cluster" style="min-width:100px">Assigned</th>`;
         resLabels.forEach(label => theadHtml += `<th style="min-width:70px">${label}</th>`);
-        theadHtml += `<th class="col-action" style="width:80px">Act</th></tr>`; // Act column wider for 2 buttons
+        theadHtml += `<th class="col-action" style="width:80px">Act</th></tr>`;
         table.querySelector('thead').innerHTML = theadHtml;
 
         const tbody = document.getElementById('projectRows');
@@ -421,7 +426,6 @@
                 <td><select onchange="updateProj(${idx}, 'clusterId', this.value)">${opts}</select></td>`;
             resKeys.forEach(k => row += `<td><input type="number" value="${p[k]}" onchange="updateProj(${idx}, '${k}', this.value)" min="0"></td>`);
             
-            // Buttons: Duplicate and Delete
             row += `<td style="text-align:center">
                 <div class="action-group">
                     <button class="btn btn-copy btn-sm" onclick="duplicateProj(${idx})" title="Duplicate">📄</button>
