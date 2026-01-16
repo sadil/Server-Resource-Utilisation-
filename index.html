@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cluster Dashboard Fixed</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --accent: #2980b9;
+            --bg: #f4f7f6;
+            --card-bg: #ffffff;
+            --border: #e0e0e0;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: var(--bg);
+            color: #333;
+        }
+
+        .container { max-width: 1400px; margin: 0 auto; }
+        .dashboard-grid { display: grid; grid-template-columns: 1fr; gap: 20px; }
+        
+        .card {
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            border: 1px solid var(--border);
+        }
+
+        h1, h2 { color: var(--primary); margin-top: 0; }
+        
+        .header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        /* --- Tables --- */
+        table { width: 100%; border-collapse: collapse; font-size: 0.9rem; margin-bottom: 10px; table-layout: fixed; }
+        th, td { text-align: left; padding: 10px; border-bottom: 1px solid #eee; vertical-align: middle; }
+        th { background-color: var(--primary); color: white; }
+        
+        /* Column Width Fixes */
+        th.col-color { width: 50px; text-align: center; }
+        th.col-name { width: 20%; }
+        /* Increased width to prevent text cutting off */
+        th.col-cluster { width: 140px; } 
+        th.col-action { width: 60px; text-align: center; }
+
+        /* --- Inputs & Selects --- */
+        input[type="number"], input[type="text"], select {
+            width: 100%; 
+            box-sizing: border-box; 
+            padding: 8px; 
+            border: 1px solid #ccc; 
+            border-radius: 4px;
+            font-size: 0.9rem;
+            height: 36px;
+        }
+
+        /* Ensure dropdown text doesn't get hidden behind the arrow */
+        select {
+            padding-right: 25px; 
+            text-overflow: ellipsis;
+        }
+
+        .btn {
+            background-color: var(--accent); color: white; border: none;
+            padding: 8px 12px; border-radius: 4px; cursor: pointer; font-weight: 600;
+        }
+        .btn:hover { background-color: #1f6391; }
+        .btn-danger { background-color: #e74c3c; }
+
+        /* Chart */
+        .chart-wrapper { position: relative; height: 500px; width: 100%; }
+        
+        .legend-box {
+            background: #eef2f5; padding: 10px; 
+            border-left: 5px solid var(--accent); margin-bottom: 15px; font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Server Hardware Utilisation</h1>
+    
+    <div class="dashboard-grid">
+        
+        <!-- VISUALISATION -->
+        <div class="card">
+            <h2>Resource Split (Continuous View)</h2>
+            <div class="legend-box">
+                <strong>Guide:</strong> 
+                The bar is split into 3 sections (Cluster 1, 2, 3). 
+                <span style="display:inline-block;width:10px;height:10px;background:#e0e0e0;border:1px solid #ccc"></span> <strong>Grey</strong> represents total capacity. 
+                Colored blocks are Projects consuming that capacity.
+            </div>
+
+            <div class="chart-wrapper">
+                <canvas id="utilizationChart"></canvas>
+            </div>
+        </div>
+
+        <!-- CONFIGURATION -->
+        <div class="card">
+            <div class="header-row">
+                <h2>1. Hardware Limits (Total Capacity)</h2>
+                <button class="btn" onclick="resetDefaults()">Reset Defaults</button>
+            </div>
+            <table id="capacityTable">
+                <thead>
+                    <tr>
+                        <th class="col-name">Cluster</th>
+                        <th>vCPU</th>
+                        <th>Memory (GB)</th>
+                        <th>Normal Sto. (TB)</th>
+                        <th>Fast Sto. (TB)</th>
+                        <th>vGPU</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+
+        <!-- PROJECTS -->
+        <div class="card">
+            <div class="header-row">
+                <h2>2. Project Workloads</h2>
+                <button class="btn" onclick="addProject()">+ Add Project</button>
+            </div>
+            <table id="projectsTable">
+                <thead>
+                    <tr>
+                        <th class="col-color">Color</th>
+                        <th class="col-name">Project Name</th>
+                        <th class="col-cluster">Cluster</th>
+                        <th>vCPU</th>
+                        <th>Mem (GB)</th>
+                        <th>N. Sto (TB)</th>
+                        <th>F. Sto (TB)</th>
+                        <th>vGPU</th>
+                        <th class="col-action"></th>
+                    </tr>
+                </thead>
+                <tbody id="projectRows"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+    // --- DATA & CONFIG ---
+    const clusters = ['Cluster 1', 'Cluster 2', 'Cluster 3'];
+    const resKeys = ['vcpu', 'ram', 'storage_norm', 'storage_fast', 'vgpu'];
+    const resLabels = ['vCPU', 'Memory', 'Normal Storage', 'Fast Storage', 'vGPU'];
+    const palette = ['#E74C3C', '#3498DB', '#F1C40F', '#9B59B6', '#2ECC71', '#E67E22', '#1ABC9C', '#34495E'];
+
+    let capacities = {};
+    let projects = [];
+    let myChart = null;
+
+    // --- INIT ---
+    function init() { resetDefaults(); }
+
+    function resetDefaults() {
+        capacities = {
+            'Cluster 1': { vcpu: 100, ram: 500, storage_norm: 100, storage_fast: 20, vgpu: 10 },
+            'Cluster 2': { vcpu: 100, ram: 500, storage_norm: 100, storage_fast: 20, vgpu: 10 },
+            'Cluster 3': { vcpu: 200, ram: 1000, storage_norm: 200, storage_fast: 50, vgpu: 20 }
+        };
+        projects = [
+            { id: 1, name: 'Web Portal', cluster: 'Cluster 1', vcpu: 20, ram: 50, storage_norm: 10, storage_fast: 0, vgpu: 0, color: palette[0] },
+            { id: 2, name: 'Data Lake', cluster: 'Cluster 3', vcpu: 50, ram: 200, storage_norm: 50, storage_fast: 10, vgpu: 5, color: palette[1] },
+            { id: 3, name: 'ML Engine', cluster: 'Cluster 2', vcpu: 60, ram: 300, storage_norm: 20, storage_fast: 15, vgpu: 8, color: palette[2] },
+            { id: 4, name: 'App2', cluster: 'Cluster 2', vcpu: 20, ram: 50, storage_norm: 40, storage_fast: 2, vgpu: 1, color: palette[3] }
+        ];
+        renderCapacityTable();
+        renderProjectTable();
+        updateChart();
+    }
+
+    // --- DOM RENDERING ---
+    function renderCapacityTable() {
+        const tbody = document.querySelector('#capacityTable tbody');
+        tbody.innerHTML = '';
+        clusters.forEach(c => {
+            const tr = document.createElement('tr');
+            let html = `<td><strong>${c}</strong></td>`;
+            resKeys.forEach(key => html += `<td><input type="number" value="${capacities[c][key]}" onchange="updateCap('${c}','${key}',this.value)" min="1"></td>`);
+            tr.innerHTML = html;
+            tbody.appendChild(tr);
+        });
+    }
+
+    function renderProjectTable() {
+        const tbody = document.getElementById('projectRows');
+        tbody.innerHTML = '';
+        projects.forEach((p, idx) => {
+            const tr = document.createElement('tr');
+            
+            // Explicitly set selected attribute
+            const opts = clusters.map(c => 
+                `<option value="${c}" ${c === p.cluster ? 'selected' : ''}>${c}</option>`
+            ).join('');
+
+            tr.innerHTML = `
+                <td style="text-align:center"><div style="width:18px;height:18px;background:${p.color};border-radius:3px;margin:0 auto;"></div></td>
+                <td><input type="text" value="${p.name}" onchange="updateProj(${idx}, 'name', this.value)"></td>
+                <td><select onchange="updateProj(${idx}, 'cluster', this.value)">${opts}</select></td>
+                <td><input type="number" value="${p.vcpu}" onchange="updateProj(${idx}, 'vcpu', this.value)" min="0"></td>
+                <td><input type="number" value="${p.ram}" onchange="updateProj(${idx}, 'ram', this.value)" min="0"></td>
+                <td><input type="number" value="${p.storage_norm}" onchange="updateProj(${idx}, 'storage_norm', this.value)" min="0"></td>
+                <td><input type="number" value="${p.storage_fast}" onchange="updateProj(${idx}, 'storage_fast', this.value)" min="0"></td>
+                <td><input type="number" value="${p.vgpu}" onchange="updateProj(${idx}, 'vgpu', this.value)" min="0"></td>
+                <td style="text-align:center"><button class="btn btn-danger" onclick="removeProj(${idx})">×</button></td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    // --- LOGIC ---
+    function updateCap(c, k, v) { capacities[c][k] = parseFloat(v) || 1; updateChart(); }
+    
+    function updateProj(i, f, v) { 
+        projects[i][f] = (f==='name'||f==='cluster') ? v : (parseFloat(v)||0); 
+        updateChart(); 
+    }
+
+    function addProject() {
+        projects.push({ 
+            id: Date.now(), name: 'New App', cluster: 'Cluster 1', 
+            vcpu: 0, ram: 0, storage_norm: 0, storage_fast: 0, vgpu: 0, 
+            color: palette[projects.length % palette.length] 
+        });
+        renderProjectTable();
+        updateChart();
+    }
+    
+    function removeProj(i) { projects.splice(i, 1); renderProjectTable(); updateChart(); }
+
+    // --- CHART LOGIC ---
+    function updateChart() {
+        const ctx = document.getElementById('utilizationChart').getContext('2d');
+        
+        let datasets = [];
+
+        // 1. Create BACKGROUND datasets (The Grey Containers)
+        // These are drawn first so they appear behind the projects.
+        // We force them to be exactly 0-100, 100-200, 200-300.
+        const bgConfigs = [
+            { label: 'Capacity (C1)', range: [0, 100] },
+            { label: 'Capacity (C2)', range: [100, 200] },
+            { label: 'Capacity (C3)', range: [200, 300] }
+        ];
+
+        bgConfigs.forEach(bg => {
+            datasets.push({
+                label: bg.label,
+                data: resLabels.map(() => bg.range), // Same range for all 5 resources
+                backgroundColor: '#e0e0e0', // Visible Grey
+                borderWidth: 0,
+                barPercentage: 0.9,
+                categoryPercentage: 0.9,
+                // Using 'grouped: false' ensures they don't try to dodge other bars
+                grouped: false,
+                order: 10 // Higher order draws later? No, usually lower is top. Chart.js default: datasets order.
+            });
+        });
+
+        // 2. Create PROJECT datasets
+        // We calculate the offsets manually.
+        let accumulated = Array(resKeys.length).fill(0).map(() => ({ 'Cluster 1': 0, 'Cluster 2': 0, 'Cluster 3': 0 }));
+
+        projects.forEach(p => {
+            let dataPoints = [];
+            
+            resKeys.forEach((key, rIdx) => {
+                const cap = capacities[p.cluster][key];
+                const val = p[key];
+                const pct = (val / cap) * 100;
+                
+                // Base offset per cluster
+                let base = (p.cluster === 'Cluster 2') ? 100 : (p.cluster === 'Cluster 3') ? 200 : 0;
+                
+                // Start after the previous project in this cluster
+                let start = base + accumulated[rIdx][p.cluster];
+                let end = start + pct;
+                
+                // Cap at 100% of that cluster (visual safety)
+                if (end > base + 100) end = base + 100;
+                if (start >= end) {
+                    dataPoints.push(null); // Don't draw if full or 0
+                } else {
+                    dataPoints.push([start, end]);
+                }
+
+                accumulated[rIdx][p.cluster] += pct;
+            });
+
+            datasets.push({
+                label: p.name,
+                data: dataPoints,
+                backgroundColor: p.color,
+                barPercentage: 0.9,
+                categoryPercentage: 0.9,
+                grouped: false, // Essential for overlapping the background
+                order: 1 // Draw on top of background
+            });
+        });
+
+        if (myChart) myChart.destroy();
+
+        myChart = new Chart(ctx, {
+            type: 'bar',
+            data: { labels: resLabels, datasets: datasets },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: {
+                    mode: 'nearest',
+                    axis: 'y',
+                    intersect: true
+                },
+                scales: {
+                    x: {
+                        min: 0, 
+                        max: 300,
+                        stacked: false, // Disable auto-stacking logic; we control positions manually
+                        grid: {
+                            color: ctx => (ctx.tick.value === 100 || ctx.tick.value === 200) ? '#333' : '#eee',
+                            lineWidth: ctx => (ctx.tick.value === 100 || ctx.tick.value === 200) ? 2 : 1
+                        },
+                        ticks: {
+                            callback: v => {
+                                if(v===0) return '0%';
+                                if(v===100 || v===200) return '|'; 
+                                if(v===300) return '100%';
+                                return (v % 100) + '%';
+                            }
+                        }
+                    },
+                    x2: {
+                        position: 'top', min: 0, max: 300,
+                        grid: { display: false },
+                        ticks: {
+                            callback: v => {
+                                if(v===50) return 'CLUSTER 1';
+                                if(v===150) return 'CLUSTER 2';
+                                if(v===250) return 'CLUSTER 3';
+                                return '';
+                            },
+                            font: { weight: 'bold', size: 14 }, color: '#2c3e50'
+                        }
+                    },
+                    y: { 
+                        stacked: false // Manual positioning, so no stacking needed
+                    }
+                },
+                plugins: {
+                    legend: {
+                        // Filter out the "Capacity" grey bars from legend
+                        labels: { filter: item => !item.text.includes('Capacity') }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(ctx) {
+                                if(ctx.dataset.label.includes('Capacity')) return null;
+                                
+                                const raw = ctx.raw; // [start, end]
+                                if(!raw) return null;
+                                const width = raw[1] - raw[0];
+                                
+                                const p = projects.find(proj => proj.name === ctx.dataset.label);
+                                const key = resKeys[ctx.dataIndex];
+                                const val = p ? p[key] : 0;
+                                
+                                return `${ctx.dataset.label}: ${width.toFixed(1)}% used (${val} units)`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    init();
+</script>
+
+</body>
+</html>
