@@ -543,4 +543,26 @@
                         y: { stacked: false, ticks: { color: textColor, font: {size: 11} } }
                     },
                     plugins: {
-                        legend: { d
+                        legend: { display: true, position: 'top', labels: { filter: i => !i.text.startsWith('_BG_'), color: textColor } },
+                        tooltip: {
+                            callbacks: {
+                                label: function(ctx) {
+                                    if (ctx.dataset.label.startsWith('_BG_')) {
+                                        const cId = ctx.dataset.clusterId; const rIdx = ctx.dataIndex; const resKey = resKeys[rIdx];
+                                        const used = usageMap[cId][rIdx]; const total = clusterState.find(c => c.id === cId)[resKey];
+                                        const freePct = Math.max(0, 100 - used); const freeUnits = (freePct/100)*total;
+                                        return [`Available: ${freePct.toFixed(1)}%`, `${Math.floor(freeUnits)} / ${total}`];
+                                    }
+                                    const raw = ctx.raw; const p = projects.find(proj => proj.name === ctx.dataset.label);
+                                    const val = p ? p[resKeys[ctx.dataIndex]] : 0;
+                                    return `${ctx.dataset.label}: ${(raw[1]-raw[0]).toFixed(1)}% (${val})`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+    </script>
+</body>
+</html>
