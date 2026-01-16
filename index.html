@@ -2,8 +2,8 @@
 <html lang="en" data-theme="light">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Server Dashboard PWA</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Server Utilisation</title>
     
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#2c3e50">
@@ -16,133 +16,170 @@
             --primary: #2c3e50; --accent: #2980b9; --bg: #f4f7f6; --card-bg: #ffffff;
             --text: #333333; --text-muted: #666666; --border: #e0e0e0;
             --input-bg: #ffffff; --input-border: #cccccc; --chart-grid-strong: #333333;
-            --chart-grid-weak: #e0e0e0; --chart-text: #2c3e50; --grey-bar: #e0e0e0;
+            --chart-grid-weak: #e0e0e0; --chart-text: #2c3e50; 
+            --grey-bar: #e0e0e0; /* Light Mode Grey */
             --th-text: #ffffff;
         }
         [data-theme="dark"] {
             --primary: #34495e; --accent: #3498db; --bg: #1a1a1a; --card-bg: #2c2c2c;
             --text: #f0f0f0; --text-muted: #aaaaaa; --border: #444444;
             --input-bg: #3d3d3d; --input-border: #555555; --chart-grid-strong: #aaaaaa;
-            --chart-grid-weak: #444444; --chart-text: #dddddd; --grey-bar: #4a4a4a;
+            --chart-grid-weak: #444444; --chart-text: #dddddd; 
+            --grey-bar: #4a4a4a; /* Dark Mode Grey */
             --th-text: #eeeeee;
         }
 
+        /* RESET & LAYOUT */
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            margin: 0; padding: 20px; background-color: var(--bg); color: var(--text);
+            margin: 0; padding: 15px; 
+            background-color: var(--bg); color: var(--text);
             transition: background-color 0.3s, color 0.3s;
-            overscroll-behavior-y: contain; 
+            /* Prevents horizontal scroll on the body itself */
+            overflow-x: hidden; 
+            width: 100vw;
+            box-sizing: border-box;
         }
 
-        .container { max-width: 1400px; margin: 0 auto; padding-bottom: 50px; }
+        .container { 
+            max-width: 1400px; 
+            margin: 0 auto; 
+            padding-bottom: 50px;
+            width: 100%;
+        }
 
-        /* HEADER LAYOUT */
+        /* HEADER LAYOUT - SINGLE LINE ENFORCED */
         .header-main { 
             display: flex; 
             justify-content: space-between; 
             align-items: center; 
             margin-bottom: 20px; 
+            width: 100%;
+            gap: 10px;
+            white-space: nowrap; /* Prevent wrapping */
         }
         
-        .header-title-group {
+        .header-left {
             display: flex;
             align-items: center;
             gap: 15px;
+            flex: 1; /* Takes available space */
+            overflow: hidden; /* Safety */
         }
 
-        .header-controls {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        h1 { font-size: 1.8rem; color: var(--accent); margin: 0; }
-        h2 { font-size: 1.2rem; margin: 0 0 15px 0; color: var(--text); }
-
-        .dashboard-grid { display: grid; grid-template-columns: 1fr; gap: 20px; }
-        
-        .card { 
-            background: var(--card-bg); padding: 20px; 
-            border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); 
-            border: 1px solid var(--border); 
+        h1 { 
+            font-size: 1.5rem; 
+            color: var(--accent); 
+            margin: 0; 
+            font-weight: 700;
         }
 
         /* BUTTONS */
         .btn { 
             background-color: var(--accent); color: white; border: none; 
             padding: 8px 16px; border-radius: 4px; cursor: pointer; font-weight: 600; 
-            font-size: 0.9rem;
+            font-size: 0.9rem; flex-shrink: 0; /* Don't squash button */
         }
         .btn:hover { opacity: 0.9; }
-        
+        .btn-danger { background-color: #e74c3c; }
+
         .btn-icon {
             background: none; border: 1px solid var(--border); 
-            font-size: 1.5rem; padding: 5px 10px; border-radius: 50%;
+            font-size: 1.2rem; padding: 6px; border-radius: 50%; width: 40px; height: 40px;
             cursor: pointer; color: var(--text);
-            transition: transform 0.2s;
+            display: flex; align-items: center; justify-content: center;
+            transition: background 0.2s;
+            flex-shrink: 0;
         }
-        .btn-icon:hover { transform: scale(1.1); background: var(--border); }
+        .btn-icon:hover { background: var(--border); }
 
-        .btn-danger { background-color: #e74c3c; padding: 6px 12px; font-size: 0.85rem; }
+        /* CARDS & GRID */
+        .dashboard-grid { display: grid; grid-template-columns: 1fr; gap: 20px; }
+        .card { 
+            background: var(--card-bg); padding: 15px; 
+            border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); 
+            border: 1px solid var(--border); 
+            width: 100%; box-sizing: border-box;
+        }
+        h2 { font-size: 1.1rem; margin: 0 0 10px 0; color: var(--text); }
+
+        /* LEGEND INDICATOR */
+        .legend-indicator {
+            display: inline-block;
+            width: 12px; height: 12px;
+            background-color: var(--grey-bar); /* SYNC WITH THEME */
+            margin-right: 5px;
+            border: 1px solid var(--border);
+            vertical-align: middle;
+        }
 
         /* TABLES */
-        .table-responsive { width: 100%; overflow-x: auto; }
-        table { width: 100%; border-collapse: collapse; font-size: 0.9rem; min-width: 800px; table-layout: fixed; }
+        .table-responsive { 
+            width: 100%; 
+            overflow-x: auto; 
+            -webkit-overflow-scrolling: touch; /* Smooth scroll on iOS */
+        }
+        table { 
+            width: 100%; border-collapse: collapse; font-size: 0.85rem; 
+            min-width: 800px; /* Forces scroll inside .table-responsive */
+            table-layout: fixed; 
+        }
         th, td { text-align: left; padding: 8px; border-bottom: 1px solid var(--border); vertical-align: middle; }
         th { background-color: var(--primary); color: var(--th-text); }
 
         /* INPUTS */
         input, select { 
-            width: 100%; padding: 6px; 
+            width: 100%; padding: 6px; box-sizing: border-box;
             border: 1px solid var(--input-border); border-radius: 4px; 
             background-color: var(--input-bg); color: var(--text); 
-            font-size: 0.9rem; 
+            font-size: 0.85rem; 
         }
-
-        /* EDITABLE HEADERS STYLE */
         input.header-edit {
             background: rgba(255,255,255,0.1);
             border: 1px solid rgba(255,255,255,0.2);
-            color: var(--th-text);
-            font-weight: bold;
-            text-align: center;
+            color: var(--th-text); font-weight: bold; text-align: center;
         }
-        input.header-edit::placeholder { color: rgba(255,255,255,0.6); }
-        input.header-edit:focus {
-            background: var(--input-bg);
-            color: var(--text);
-        }
+        input.header-edit:focus { background: var(--input-bg); color: var(--text); }
 
-        .chart-wrapper { position: relative; height: 500px; width: 100%; }
+        .chart-wrapper { position: relative; height: 400px; width: 100%; }
         .legend-box { 
             background: rgba(0,0,0,0.05); padding: 10px; 
             border-left: 5px solid var(--accent); margin-bottom: 15px; 
-            font-size: 0.9rem; color: var(--text-muted); 
+            font-size: 0.85rem; color: var(--text-muted); 
+            line-height: 1.4;
         }
 
-        /* Columns */
-        .col-color { width: 40px; } .col-name { width: 20%; } 
-        .col-cluster { width: 15%; } .col-action { width: 50px; }
-
-        @media (max-width: 768px) { 
-            .chart-wrapper { height: 400px; } 
-            h1 { font-size: 1.4rem; } 
-            .header-main { flex-direction: row; flex-wrap: wrap; }
+        /* MOBILE SPECIFIC OVERRIDES */
+        @media (max-width: 600px) {
+            body { padding: 10px; }
+            
+            /* Squeeze header onto one line */
+            .header-main { gap: 8px; }
+            .header-left { gap: 8px; }
+            h1 { font-size: 1.1rem; } /* Smaller title */
+            .btn { 
+                padding: 6px 10px; 
+                font-size: 0.8rem; 
+            }
+            .btn-icon { width: 34px; height: 34px; font-size: 1rem; }
+            
+            .chart-wrapper { height: 350px; }
+            
+            /* Ensure sub-headers stack properly */
+            .sub-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
         }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <!-- TOP HEADER -->
+    <!-- TOP HEADER: Single Line Layout -->
     <div class="header-main">
-        <div class="header-title-group">
-            <h1>Server Resource PWA</h1>
+        <div class="header-left">
+            <h1>Server Utilisation</h1>
             <button class="btn btn-danger" onclick="resetDefaults()">Reset Defaults</button>
         </div>
-        <div class="header-controls">
-            <button class="btn-icon" onclick="toggleTheme()" title="Toggle Dark/Light Mode">🌗</button>
-        </div>
+        <button class="btn-icon" onclick="toggleTheme()" aria-label="Toggle Dark Mode">🌗</button>
     </div>
     
     <div class="dashboard-grid">
@@ -150,45 +187,37 @@
         <div class="card">
             <h2>Live Utilization</h2>
             <div class="legend-box">
-                The bar is split into 3 sections. <span style="color:var(--text)">■ Grey</span> is Free Space. Colored blocks are Projects. Data saves automatically.
+                <!-- Color Box now uses a class to sync with theme -->
+                The bar is split into 3 sections. 
+                <span class="legend-indicator"></span> 
+                <strong>Grey</strong> is Free Space. Colored blocks are Projects.
             </div>
             <div class="chart-wrapper">
                 <canvas id="utilizationChart"></canvas>
             </div>
         </div>
 
-        <!-- CONFIGURATION (With Editable Axis Names) -->
+        <!-- CONFIGURATION -->
         <div class="card">
             <h2>1. Configuration (Rename Axis & Clusters)</h2>
-            <p style="font-size:0.8rem; color:var(--text-muted); margin-top:-10px; margin-bottom:10px;">
-                Tip: Rename the column headers below to change the Vertical Axis labels on the chart.
-            </p>
             <div class="table-responsive">
                 <table id="capacityTable">
-                    <thead>
-                        <!-- JS Generated -->
-                    </thead>
-                    <tbody>
-                        <!-- JS Generated -->
-                    </tbody>
+                    <thead><!-- JS Generated --></thead>
+                    <tbody><!-- JS Generated --></tbody>
                 </table>
             </div>
         </div>
 
         <!-- PROJECTS -->
         <div class="card">
-            <div class="header-main" style="margin-bottom:10px">
+            <div class="sub-header">
                 <h2>2. Project Workloads</h2>
                 <button class="btn" onclick="addProject()">+ Add Project</button>
             </div>
             <div class="table-responsive">
                 <table id="projectsTable">
-                    <thead>
-                        <!-- JS Generated -->
-                    </thead>
-                    <tbody id="projectRows">
-                        <!-- JS Generated -->
-                    </tbody>
+                    <thead><!-- JS Generated --></thead>
+                    <tbody id="projectRows"><!-- JS Generated --></tbody>
                 </table>
             </div>
         </div>
@@ -196,12 +225,10 @@
 </div>
 
 <script>
-    // --- PWA REGISTRATION ---
     if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('sw.js').catch(console.error);
     }
 
-    // --- DEFAULTS ---
     const initialClusters = [
         { id: 'c1', name: 'Cluster 1', vcpu: 100, ram: 500, storage_norm: 100, storage_fast: 20, vgpu: 10 },
         { id: 'c2', name: 'Cluster 2', vcpu: 100, ram: 500, storage_norm: 100, storage_fast: 20, vgpu: 10 },
@@ -213,18 +240,15 @@
         { id: 2, name: 'Data Lake', clusterId: 'c3', vcpu: 50, ram: 200, storage_norm: 50, storage_fast: 10, vgpu: 5, color: '#3498DB' }
     ];
 
-    // The internal keys never change, but the labels can
     const resKeys = ['vcpu', 'ram', 'storage_norm', 'storage_fast', 'vgpu'];
     const defaultLabels = ['vCPU', 'Memory', 'Normal Storage', 'Fast Storage', 'vGPU'];
     const palette = ['#E74C3C', '#3498DB', '#F1C40F', '#9B59B6', '#2ECC71', '#E67E22', '#1ABC9C', '#34495E'];
 
-    // --- STATE ---
     let clusterState = [];
     let projects = [];
     let resLabels = [];
     let myChart = null;
 
-    // --- STORAGE ---
     function saveState() {
         const data = {
             clusters: clusterState,
@@ -232,11 +256,11 @@
             labels: resLabels,
             theme: document.documentElement.getAttribute('data-theme')
         };
-        localStorage.setItem('serverDashboardData_v2', JSON.stringify(data));
+        localStorage.setItem('serverDashboardData_v3', JSON.stringify(data));
     }
 
     function loadState() {
-        const stored = localStorage.getItem('serverDashboardData_v2');
+        const stored = localStorage.getItem('serverDashboardData_v3');
         if (stored) {
             try {
                 const data = JSON.parse(stored);
@@ -250,7 +274,6 @@
         return false;
     }
 
-    // --- ACTIONS ---
     function resetDefaults() {
         if(confirm("Reset everything to default? This cannot be undone.")) {
             clusterState = JSON.parse(JSON.stringify(initialClusters));
@@ -297,9 +320,7 @@
 
     function updateLabel(idx, val) {
         resLabels[idx] = val;
-        saveState(); 
-        renderProjectTable(); // Update headers there too
-        updateChart();
+        saveState(); renderProjectTable(); updateChart();
     }
 
     function updateProj(idx, field, val) {
@@ -326,7 +347,6 @@
     function renderCapacityTable() {
         const table = document.getElementById('capacityTable');
         
-        // Dynamic Header with Input Fields for Resource Names
         let theadHtml = `<tr><th class="col-name">Cluster Name</th>`;
         resLabels.forEach((label, idx) => {
             theadHtml += `<th><input type="text" class="header-edit" value="${label}" onchange="updateLabel(${idx}, this.value)"></th>`;
@@ -334,7 +354,6 @@
         theadHtml += `</tr>`;
         table.querySelector('thead').innerHTML = theadHtml;
 
-        // Body
         let tbodyHtml = '';
         clusterState.forEach(c => {
             let row = `<td><input type="text" value="${c.name}" onchange="updateClusterName('${c.id}', this.value)" style="font-weight:bold"></td>`;
@@ -349,26 +368,22 @@
     function renderProjectTable() {
         const table = document.getElementById('projectsTable');
         
-        // Header needs to match the custom labels
         let theadHtml = `<tr>
-            <th class="col-color">Color</th>
+            <th class="col-color" style="width:40px">Color</th>
             <th class="col-name">Project Name</th>
             <th class="col-cluster">Assigned To</th>`;
         
-        resLabels.forEach(label => {
-            theadHtml += `<th>${label}</th>`; // Read-only in this table
-        });
+        resLabels.forEach(label => theadHtml += `<th>${label}</th>`);
         theadHtml += `<th class="col-action"></th></tr>`;
         table.querySelector('thead').innerHTML = theadHtml;
 
-        // Body
         const tbody = document.getElementById('projectRows');
         tbody.innerHTML = '';
         projects.forEach((p, idx) => {
             const opts = clusterState.map(c => `<option value="${c.id}" ${c.id === p.clusterId ? 'selected' : ''}>${c.name}</option>`).join('');
             
             let row = `
-                <td style="text-align:center"><div style="width:18px;height:18px;background:${p.color};border-radius:3px;margin:0 auto;"></div></td>
+                <td style="text-align:center"><div style="width:16px;height:16px;background:${p.color};border-radius:3px;margin:0 auto;"></div></td>
                 <td><input type="text" value="${p.name}" onchange="updateProj(${idx}, 'name', this.value)"></td>
                 <td><select onchange="updateProj(${idx}, 'clusterId', this.value)">${opts}</select></td>`;
             
@@ -398,7 +413,7 @@
         clusterState.forEach((c, i) => {
             datasets.push({
                 label: `_BG_${c.id}`,
-                data: resKeys.map(() => [i*100, (i*100)+100]), // Range 0-100, 100-200, etc.
+                data: resKeys.map(() => [i*100, (i*100)+100]),
                 backgroundColor: getThemeColor('--grey-bar'),
                 barPercentage: 0.9, categoryPercentage: 0.9, grouped: false, order: 10,
                 clusterId: c.id, clusterName: c.name
@@ -435,7 +450,7 @@
         
         myChart = new Chart(ctx, {
             type: 'bar',
-            data: { labels: resLabels, datasets: datasets }, // Use Dynamic Labels
+            data: { labels: resLabels, datasets: datasets },
             options: {
                 indexAxis: 'y', responsive: true, maintainAspectRatio: false,
                 scales: {
@@ -446,7 +461,6 @@
                     x2: { position: 'top', min: 0, max: 300, grid: { display: false },
                         ticks: { color: getThemeColor('--chart-text'), font: { weight: 'bold', size: 14 }, 
                         callback: v => {
-                            // Dynamic Cluster Names in Axis
                             if(v===50) return clusterState[0]?.name || '';
                             if(v===150) return clusterState[1]?.name || '';
                             if(v===250) return clusterState[2]?.name || '';
