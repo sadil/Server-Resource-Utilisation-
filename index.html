@@ -2,14 +2,15 @@
 <html lang="en" data-theme="light">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
+    <!-- UPDATED VIEWPORT: Starts zoomed out (0.7) to show full context -->
+    <meta name="viewport" content="width=device-width, initial-scale=0.7, maximum-scale=5.0, user-scalable=yes">
     <title>Server Utilisation</title>
     
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#2c3e50">
     <link rel="apple-touch-icon" href="icon-192.png">
 
-    <!-- Chart.js Library: Added crossorigin for better error handling -->
+    <!-- Chart.js Library -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js" crossorigin="anonymous"></script>
     
     <style>
@@ -93,7 +94,6 @@
         }
         .btn-icon:hover { background: var(--border); }
 
-        /* ACTION BUTTONS IN TABLE */
         .action-group { display: flex; gap: 4px; justify-content: center; }
         .btn-sm { padding: 4px 8px; font-size: 0.8rem; min-height: 28px; }
 
@@ -137,7 +137,7 @@
         /* INPUTS */
         input, select { 
             width: 100%; 
-            padding: 4px 6px; 
+            padding: 4px 2px; /* UPDATED: Less padding to show more text */
             border: 1px solid var(--input-border); border-radius: 3px; 
             background-color: var(--input-bg); color: var(--text); 
             font-size: 16px; 
@@ -145,6 +145,16 @@
             height: 32px; 
         }
         
+        /* HIDE SPIN BUTTONS (Arrows) to show more number text */
+        input::-webkit-outer-spin-button,
+        input::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+        input[type=number] {
+            -moz-appearance: textfield;
+        }
+
         input[type="color"] {
             padding: 0; border: none; 
             width: 24px; height: 24px; 
@@ -190,7 +200,8 @@
     
     <div class="dashboard-grid">
         <div class="card">
-            <h2>Live Utilization</h2>
+            <!-- UPDATED TITLE -->
+            <h2>Utilization</h2>
             <div class="legend-box">
                 <span class="legend-indicator"></span> <strong>Grey</strong>: Free Space.<br>
                 <strong>Colors</strong>: Projects. (Click color in table to change).
@@ -226,13 +237,8 @@
 </div>
 
 <script>
-    // --- GLOBAL ERROR HANDLER ---
     window.onerror = function(msg, url, line) {
-        // Filter out generic script errors (usually CORS or Extension related)
-        if (msg === 'Script error.' || msg === 'Script error') {
-            return true; // Suppress it
-        }
-
+        if (msg === 'Script error.' || msg === 'Script error') return true; 
         const errDiv = document.getElementById('error-log');
         errDiv.style.display = 'block';
         errDiv.innerHTML = `<strong>Error:</strong> ${msg} (Line: ${line})`;
@@ -249,13 +255,11 @@
         }
     });
 
-    // --- STATE ---
     let clusterState = [];
     let projects = [];
     let resLabels = [];
     let myChart = null;
 
-    // --- DEFAULTS ---
     const initialClusters = [
         { id: 'c1', name: 'Cluster 1', vcpu: 100, ram: 500, storage_norm: 100, storage_fast: 20, vgpu: 10 },
         { id: 'c2', name: 'Cluster 2', vcpu: 100, ram: 500, storage_norm: 100, storage_fast: 20, vgpu: 10 },
@@ -292,7 +296,6 @@
         if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(console.error);
     }
 
-    // --- CORE LOGIC ---
     async function forceUpdateApp() {
         if(!confirm("Update WebApp UI? (Data is safe)")) return;
         if ('serviceWorker' in navigator) {
@@ -320,7 +323,7 @@
 
     function loadState() {
         try {
-            const stored = localStorage.getItem('serverDashboardData_v7'); 
+            const stored = localStorage.getItem('serverDashboardData_v7');
             if (!stored) return false;
             const data = JSON.parse(stored);
             if (!data.clusters || !data.projects) return false;
@@ -353,7 +356,6 @@
         saveState(); updateChart();
     }
 
-    // --- DATA FUNCTIONS ---
     window.updateClusterName = function(id, val) { clusterState.find(c => c.id === id).name = val; saveState(); renderProjectTable(); updateChart(); }
     window.updateClusterCap = function(id, key, val) { clusterState.find(c => c.id === id)[key] = parseFloat(val) || 1; saveState(); updateChart(); }
     window.updateLabel = function(idx, val) { resLabels[idx] = val; saveState(); renderProjectTable(); updateChart(); }
@@ -385,7 +387,6 @@
         saveState(); renderProjectTable(); updateChart();
     }
 
-    // --- RENDERERS ---
     function renderCapacityTable() {
         const table = document.getElementById('capacityTable');
         let theadHtml = `<tr><th class="col-name" style="min-width:110px">Cluster Name</th>`;
