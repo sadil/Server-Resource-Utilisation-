@@ -2,7 +2,8 @@
 <html lang="en" data-theme="light">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <!-- FIXED: Removed user-scalable=no to allow zooming -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Server Utilisation</title>
     
     <link rel="manifest" href="manifest.json">
@@ -17,7 +18,7 @@
             --text: #333333; --text-muted: #666666; --border: #e0e0e0;
             --input-bg: #ffffff; --input-border: #cccccc; --chart-grid-strong: #333333;
             --chart-grid-weak: #e0e0e0; --chart-text: #2c3e50; 
-            --grey-bar: #e0e0e0; /* Light Mode Grey */
+            --grey-bar: #e0e0e0; 
             --th-text: #ffffff;
         }
         [data-theme="dark"] {
@@ -25,103 +26,110 @@
             --text: #f0f0f0; --text-muted: #aaaaaa; --border: #444444;
             --input-bg: #3d3d3d; --input-border: #555555; --chart-grid-strong: #aaaaaa;
             --chart-grid-weak: #444444; --chart-text: #dddddd; 
-            --grey-bar: #4a4a4a; /* Dark Mode Grey */
+            --grey-bar: #4a4a4a; 
             --th-text: #eeeeee;
         }
 
-        /* RESET & LAYOUT */
+        /* LAYOUT BASICS */
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            margin: 0; padding: 15px; 
-            background-color: var(--bg); color: var(--text);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            margin: 0; 
+            padding: 10px; /* Reduced padding for mobile */
+            background-color: var(--bg); 
+            color: var(--text);
             transition: background-color 0.3s, color 0.3s;
-            /* Prevents horizontal scroll on the body itself */
-            overflow-x: hidden; 
-            width: 100vw;
-            box-sizing: border-box;
+            overflow-x: hidden; /* Prevent body scroll, let children scroll */
         }
 
         .container { 
             max-width: 1400px; 
             margin: 0 auto; 
-            padding-bottom: 50px;
             width: 100%;
+            box-sizing: border-box;
         }
 
-        /* HEADER LAYOUT - SINGLE LINE ENFORCED */
+        /* HEADER - FORCED SINGLE LINE */
         .header-main { 
             display: flex; 
             justify-content: space-between; 
             align-items: center; 
-            margin-bottom: 20px; 
+            margin-bottom: 15px; 
             width: 100%;
-            gap: 10px;
-            white-space: nowrap; /* Prevent wrapping */
+            gap: 5px; /* Tight gap */
         }
         
         .header-left {
             display: flex;
             align-items: center;
-            gap: 15px;
-            flex: 1; /* Takes available space */
-            overflow: hidden; /* Safety */
+            gap: 10px;
+            flex: 1; 
+            min-width: 0; /* Allows text truncation if absolutely needed */
         }
 
         h1 { 
-            font-size: 1.5rem; 
+            font-size: 1.4rem; 
             color: var(--accent); 
             margin: 0; 
             font-weight: 700;
+            white-space: nowrap;
         }
 
         /* BUTTONS */
         .btn { 
             background-color: var(--accent); color: white; border: none; 
-            padding: 8px 16px; border-radius: 4px; cursor: pointer; font-weight: 600; 
-            font-size: 0.9rem; flex-shrink: 0; /* Don't squash button */
+            padding: 8px 12px; border-radius: 4px; cursor: pointer; font-weight: 600; 
+            font-size: 0.9rem; flex-shrink: 0; 
+            white-space: nowrap;
         }
         .btn:hover { opacity: 0.9; }
         .btn-danger { background-color: #e74c3c; }
 
         .btn-icon {
             background: none; border: 1px solid var(--border); 
-            font-size: 1.2rem; padding: 6px; border-radius: 50%; width: 40px; height: 40px;
+            font-size: 1.2rem; padding: 0; border-radius: 50%; width: 36px; height: 36px;
             cursor: pointer; color: var(--text);
             display: flex; align-items: center; justify-content: center;
             transition: background 0.2s;
             flex-shrink: 0;
+            margin-left: 5px;
         }
-        .btn-icon:hover { background: var(--border); }
 
-        /* CARDS & GRID */
-        .dashboard-grid { display: grid; grid-template-columns: 1fr; gap: 20px; }
+        /* CARDS */
+        .dashboard-grid { display: grid; grid-template-columns: 1fr; gap: 15px; }
         .card { 
             background: var(--card-bg); padding: 15px; 
-            border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); 
+            border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); 
             border: 1px solid var(--border); 
             width: 100%; box-sizing: border-box;
         }
         h2 { font-size: 1.1rem; margin: 0 0 10px 0; color: var(--text); }
 
-        /* LEGEND INDICATOR */
+        /* LEGEND */
         .legend-indicator {
             display: inline-block;
             width: 12px; height: 12px;
-            background-color: var(--grey-bar); /* SYNC WITH THEME */
+            background-color: var(--grey-bar);
             margin-right: 5px;
             border: 1px solid var(--border);
             vertical-align: middle;
         }
+        .legend-box { 
+            background: rgba(0,0,0,0.05); padding: 10px; 
+            border-left: 4px solid var(--accent); margin-bottom: 15px; 
+            font-size: 0.85rem; color: var(--text-muted); 
+            line-height: 1.4;
+        }
 
-        /* TABLES */
+        /* TABLES & SCROLLING */
         .table-responsive { 
             width: 100%; 
             overflow-x: auto; 
-            -webkit-overflow-scrolling: touch; /* Smooth scroll on iOS */
+            -webkit-overflow-scrolling: touch; 
+            margin-bottom: 5px;
         }
         table { 
             width: 100%; border-collapse: collapse; font-size: 0.85rem; 
-            min-width: 800px; /* Forces scroll inside .table-responsive */
+            min-width: 700px; /* Allows scrolling on small screens */
             table-layout: fixed; 
         }
         th, td { text-align: left; padding: 8px; border-bottom: 1px solid var(--border); vertical-align: middle; }
@@ -139,41 +147,31 @@
             border: 1px solid rgba(255,255,255,0.2);
             color: var(--th-text); font-weight: bold; text-align: center;
         }
-        input.header-edit:focus { background: var(--input-bg); color: var(--text); }
 
-        .chart-wrapper { position: relative; height: 400px; width: 100%; }
-        .legend-box { 
-            background: rgba(0,0,0,0.05); padding: 10px; 
-            border-left: 5px solid var(--accent); margin-bottom: 15px; 
-            font-size: 0.85rem; color: var(--text-muted); 
-            line-height: 1.4;
-        }
+        .chart-wrapper { position: relative; height: 350px; width: 100%; }
+        .sub-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
 
-        /* MOBILE SPECIFIC OVERRIDES */
+        /* MOBILE OPTIMIZATIONS */
         @media (max-width: 600px) {
-            body { padding: 10px; }
-            
-            /* Squeeze header onto one line */
-            .header-main { gap: 8px; }
+            /* Fix Header sizes to fit on one line */
+            h1 { font-size: 1.1rem; } 
+            .btn { font-size: 0.75rem; padding: 6px 10px; }
+            .btn-icon { width: 32px; height: 32px; font-size: 1rem; }
             .header-left { gap: 8px; }
-            h1 { font-size: 1.1rem; } /* Smaller title */
-            .btn { 
-                padding: 6px 10px; 
-                font-size: 0.8rem; 
-            }
-            .btn-icon { width: 34px; height: 34px; font-size: 1rem; }
             
-            .chart-wrapper { height: 350px; }
+            /* Adjust padding */
+            .card { padding: 10px; }
+            body { padding: 8px; }
             
-            /* Ensure sub-headers stack properly */
-            .sub-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+            /* Allow vertical scroll, but horizontal is handled by table-responsive */
+            .chart-wrapper { height: 300px; }
         }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <!-- TOP HEADER: Single Line Layout -->
+    <!-- TOP HEADER -->
     <div class="header-main">
         <div class="header-left">
             <h1>Server Utilisation</h1>
@@ -187,7 +185,6 @@
         <div class="card">
             <h2>Live Utilization</h2>
             <div class="legend-box">
-                <!-- Color Box now uses a class to sync with theme -->
                 The bar is split into 3 sections. 
                 <span class="legend-indicator"></span> 
                 <strong>Grey</strong> is Free Space. Colored blocks are Projects.
@@ -199,7 +196,7 @@
 
         <!-- CONFIGURATION -->
         <div class="card">
-            <h2>1. Configuration (Rename Axis & Clusters)</h2>
+            <h2>1. Configuration</h2>
             <div class="table-responsive">
                 <table id="capacityTable">
                     <thead><!-- JS Generated --></thead>
@@ -256,11 +253,11 @@
             labels: resLabels,
             theme: document.documentElement.getAttribute('data-theme')
         };
-        localStorage.setItem('serverDashboardData_v3', JSON.stringify(data));
+        localStorage.setItem('serverDashboardData_v4', JSON.stringify(data));
     }
 
     function loadState() {
-        const stored = localStorage.getItem('serverDashboardData_v3');
+        const stored = localStorage.getItem('serverDashboardData_v4');
         if (stored) {
             try {
                 const data = JSON.parse(stored);
@@ -347,9 +344,9 @@
     function renderCapacityTable() {
         const table = document.getElementById('capacityTable');
         
-        let theadHtml = `<tr><th class="col-name">Cluster Name</th>`;
+        let theadHtml = `<tr><th class="col-name" style="min-width:120px">Cluster Name</th>`;
         resLabels.forEach((label, idx) => {
-            theadHtml += `<th><input type="text" class="header-edit" value="${label}" onchange="updateLabel(${idx}, this.value)"></th>`;
+            theadHtml += `<th style="min-width:100px"><input type="text" class="header-edit" value="${label}" onchange="updateLabel(${idx}, this.value)"></th>`;
         });
         theadHtml += `</tr>`;
         table.querySelector('thead').innerHTML = theadHtml;
@@ -370,11 +367,11 @@
         
         let theadHtml = `<tr>
             <th class="col-color" style="width:40px">Color</th>
-            <th class="col-name">Project Name</th>
-            <th class="col-cluster">Assigned To</th>`;
+            <th class="col-name" style="min-width:120px">Project Name</th>
+            <th class="col-cluster" style="min-width:100px">Assigned To</th>`;
         
-        resLabels.forEach(label => theadHtml += `<th>${label}</th>`);
-        theadHtml += `<th class="col-action"></th></tr>`;
+        resLabels.forEach(label => theadHtml += `<th style="min-width:80px">${label}</th>`);
+        theadHtml += `<th class="col-action" style="width:50px"></th></tr>`;
         table.querySelector('thead').innerHTML = theadHtml;
 
         const tbody = document.getElementById('projectRows');
