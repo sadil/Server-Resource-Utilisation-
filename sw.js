@@ -1,34 +1,28 @@
-const CACHE_NAME = 'server-dash-v1';
-const urlsToCache = [
-  './',
-  './index.html',
-  './manifest.json',
-  'https://cdn.jsdelivr.net/npm/chart.js' 
-];
+const CACHE_NAME = 'server-dash-v2';
 
-// Install Event - Cache Files
-self.addEventListener('install', event => {
-  event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then(cache => {
-        console.log('Opened cache');
-        return cache.addAll(urlsToCache);
-      })
-  );
-});
-
-// Fetch Event - Serve from Cache if available
+// Network First Strategy
+// 1. Try to fetch from network (Fresh content)
+// 2. If successful, update cache and return content
+// 3. If offline/fail, return from cache
 self.addEventListener('fetch', event => {
   event.respondWith(
-    caches.match(event.request)
-      .then(response => {
-        // Return cache hit or fetch from network
-        return response || fetch(event.request);
+    fetch(event.request)
+      .then(networkResponse => {
+        // Clone response to put in cache
+        const responseClone = networkResponse.clone();
+        caches.open(CACHE_NAME).then(cache => {
+          cache.put(event.request, responseClone);
+        });
+        return networkResponse;
+      })
+      .catch(() => {
+        // Fallback to cache if network fails
+        return caches.match(event.request);
       })
   );
 });
 
-// Activate Event - Clean up old caches
+// Activate: Clear old caches
 self.addEventListener('activate', event => {
   const cacheWhitelist = [CACHE_NAME];
   event.waitUntil(
