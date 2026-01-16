@@ -2,13 +2,14 @@
 <html lang="en" data-theme="light">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
     <title>Server Utilisation</title>
     
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#2c3e50">
     <link rel="apple-touch-icon" href="icon-192.png">
 
+    <!-- Chart.js Library -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     
     <style>
@@ -37,7 +38,7 @@
             margin: 0; padding: 10px;
             background-color: var(--bg); color: var(--text);
             transition: background-color 0.3s, color 0.3s;
-            overflow-x: hidden; /* Prevent horizontal scroll on page level */
+            overflow-x: hidden; 
             width: 100vw;
         }
 
@@ -45,10 +46,19 @@
             max-width: 1400px; margin: 0 auto; width: 100%;
         }
 
+        /* ERROR BOX (For Debugging) */
+        #error-log {
+            display: none;
+            background: #ffebee; color: #c62828;
+            border: 1px solid #ef9a9a; padding: 10px;
+            margin-bottom: 10px; border-radius: 4px;
+            font-size: 0.85rem;
+        }
+
         /* HEADER */
         .header-main { 
             display: flex; justify-content: space-between; align-items: center; 
-            margin-bottom: 10px; width: 100%; gap: 5px;
+            margin-bottom: 15px; width: 100%; gap: 5px;
         }
         
         .header-left {
@@ -56,7 +66,7 @@
         }
 
         h1 { 
-            font-size: 1.2rem; color: var(--accent); margin: 0; 
+            font-size: 1.1rem; color: var(--accent); margin: 0; 
             font-weight: 700; white-space: nowrap; 
         }
 
@@ -67,15 +77,17 @@
         .btn { 
             background-color: var(--accent); color: white; border: none; 
             padding: 8px 12px; border-radius: 4px; cursor: pointer; font-weight: 600; 
-            font-size: 0.85rem; flex-shrink: 0; white-space: nowrap;
+            font-size: 0.8rem; flex-shrink: 0; white-space: nowrap;
+            /* Improved touch target size */
+            min-height: 32px;
         }
         .btn:hover { opacity: 0.9; }
         .btn-danger { background-color: #e74c3c; }
-        .btn-update { background-color: #27ae60; } /* Green for update */
+        .btn-update { background-color: #27ae60; } 
 
         .btn-icon {
             background: none; border: 1px solid var(--border); 
-            font-size: 1.1rem; padding: 0; border-radius: 50%; width: 34px; height: 34px;
+            font-size: 1.1rem; padding: 0; border-radius: 50%; width: 36px; height: 36px;
             cursor: pointer; color: var(--text);
             display: flex; align-items: center; justify-content: center;
             transition: background 0.2s; flex-shrink: 0;
@@ -110,7 +122,7 @@
         }
         table { 
             width: 100%; border-collapse: collapse; font-size: 0.85rem; 
-            min-width: 600px; /* Small enough for phones but forces scroll */
+            min-width: 600px; /* Forces scroll on small screens */
             table-layout: fixed; 
         }
         th, td { 
@@ -119,20 +131,17 @@
         }
         th { background-color: var(--primary); color: var(--th-text); }
 
-        /* INPUTS - The Critical Fix for Mobile */
+        /* INPUTS - Critical for Mobile */
         input, select { 
             width: 100%; 
             padding: 4px 6px; 
             border: 1px solid var(--input-border); border-radius: 3px; 
             background-color: var(--input-bg); color: var(--text); 
-            /* 16px font prevents iOS zoom on focus */
-            font-size: 16px; 
-            /* Remove iOS default styling */
+            font-size: 16px; /* Prevents iOS zoom */
             -webkit-appearance: none; 
-            height: 32px; /* Consistent height */
+            height: 32px; 
         }
         
-        /* Specific override for header inputs to look nice */
         input.header-edit {
             background: rgba(255,255,255,0.1);
             border: 1px solid rgba(255,255,255,0.2);
@@ -142,22 +151,12 @@
         .chart-wrapper { position: relative; height: 320px; width: 100%; }
         .sub-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
 
-        /* MOBILE OPTIMIZATIONS */
         @media (max-width: 600px) {
             h1 { font-size: 1rem; }
-            /* Hide the text "Reset Defaults" on very small screens, keep button logic via icon? 
-               Or just make it smaller. */
             .btn { padding: 6px 8px; font-size: 0.75rem; }
-            
-            /* Make update button smaller/icon only if needed */
             .header-left { gap: 5px; }
             .controls-right { gap: 5px; }
-
-            /* On mobile, standard inputs need 16px to stop zoom, 
-               but we reduce padding to fit content */
             input, select { padding: 0 4px; }
-            
-            /* Reduce table cell padding to squeeze more data in view */
             th, td { padding: 4px; }
         }
     </style>
@@ -165,15 +164,18 @@
 <body>
 
 <div class="container">
+    <!-- Error Log for debugging -->
+    <div id="error-log"></div>
+
     <!-- HEADER -->
     <div class="header-main">
         <div class="header-left">
             <h1>Server Utilisation</h1>
-            <button class="btn btn-update" onclick="forceUpdateApp()" title="Reload Update">↻ Update</button>
-            <button class="btn btn-danger" onclick="resetDefaults()">Reset</button>
+            <button class="btn btn-update" id="btnUpdate">↻ Update</button>
+            <button class="btn btn-danger" id="btnReset">Reset</button>
         </div>
         <div class="controls-right">
-            <button class="btn-icon" onclick="toggleTheme()" aria-label="Toggle Dark Mode">🌗</button>
+            <button class="btn-icon" id="btnTheme" aria-label="Toggle Dark Mode">🌗</button>
         </div>
     </div>
     
@@ -205,7 +207,7 @@
         <div class="card">
             <div class="sub-header">
                 <h2>2. Project Workloads</h2>
-                <button class="btn" onclick="addProject()">+ Add</button>
+                <button class="btn" id="btnAddProject">+ Add</button>
             </div>
             <div class="table-responsive">
                 <table id="projectsTable">
@@ -218,34 +220,31 @@
 </div>
 
 <script>
-    // --- APP UPDATE LOGIC ---
-    // Registers SW and handles "Force Update"
-    if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('sw.js').catch(console.error);
-    }
+    // --- GLOBAL ERROR HANDLER ---
+    window.onerror = function(msg, url, line) {
+        const errDiv = document.getElementById('error-log');
+        errDiv.style.display = 'block';
+        errDiv.innerHTML = `<strong>Error:</strong> ${msg} (Line: ${line})`;
+        return false;
+    };
 
-    async function forceUpdateApp() {
-        if(!confirm("Update WebApp UI? (Your data is safe)")) return;
-        
-        // 1. Unregister Service Workers
-        if ('serviceWorker' in navigator) {
-            const registrations = await navigator.serviceWorker.getRegistrations();
-            for (let registration of registrations) {
-                await registration.unregister();
-            }
+    // --- MAIN EXECUTION WRAPPER ---
+    document.addEventListener('DOMContentLoaded', () => {
+        try {
+            initApp();
+        } catch (e) {
+            console.error(e);
+            document.getElementById('error-log').style.display = 'block';
+            document.getElementById('error-log').innerText = "Critical App Crash: " + e.message;
         }
-        
-        // 2. Clear Caches (HTML/JS)
-        if ('caches' in window) {
-            const keys = await caches.keys();
-            await Promise.all(keys.map(key => caches.delete(key)));
-        }
-        
-        // 3. Force Reload
-        window.location.reload(true);
-    }
+    });
 
-    // --- DATA & STATE ---
+    // --- APP LOGIC ---
+    let clusterState = [];
+    let projects = [];
+    let resLabels = [];
+    let myChart = null;
+
     const initialClusters = [
         { id: 'c1', name: 'Cluster 1', vcpu: 100, ram: 500, storage_norm: 100, storage_fast: 20, vgpu: 10 },
         { id: 'c2', name: 'Cluster 2', vcpu: 100, ram: 500, storage_norm: 100, storage_fast: 20, vgpu: 10 },
@@ -260,12 +259,78 @@
     const defaultLabels = ['vCPU', 'Memory', 'Normal Storage', 'Fast Storage', 'vGPU'];
     const palette = ['#E74C3C', '#3498DB', '#F1C40F', '#9B59B6', '#2ECC71', '#E67E22', '#1ABC9C', '#34495E'];
 
-    let clusterState = [];
-    let projects = [];
-    let resLabels = [];
-    let myChart = null;
+    function initApp() {
+        // 1. Check Dependencies
+        if (typeof Chart === 'undefined') {
+            throw new Error("Chart.js failed to load. Check internet connection.");
+        }
 
-    // --- STORAGE ---
+        // 2. Attach Event Listeners
+        document.getElementById('btnUpdate').addEventListener('click', forceUpdateApp);
+        document.getElementById('btnReset').addEventListener('click', resetDefaults);
+        document.getElementById('btnTheme').addEventListener('click', toggleTheme);
+        document.getElementById('btnAddProject').addEventListener('click', addProject);
+
+        // 3. Load Data & Render
+        if (!loadState()) {
+            resetDataToDefaults(false); // don't refresh UI yet
+        }
+        
+        refreshUI();
+
+        // 4. Register SW
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('sw.js').catch(e => console.log('SW Fail', e));
+        }
+    }
+
+    // --- CORE FUNCTIONS ---
+    async function forceUpdateApp() {
+        if(!confirm("Update WebApp UI? (Data is safe)")) return;
+        
+        if ('serviceWorker' in navigator) {
+            const regs = await navigator.serviceWorker.getRegistrations();
+            for (let reg of regs) await reg.unregister();
+        }
+        if ('caches' in window) {
+            const keys = await caches.keys();
+            await Promise.all(keys.map(k => caches.delete(k)));
+        }
+        window.location.reload(true);
+    }
+
+    function resetDefaults() {
+        if(confirm("Reset all data to defaults?")) {
+            resetDataToDefaults(true);
+        }
+    }
+
+    function resetDataToDefaults(shouldRefresh) {
+        clusterState = JSON.parse(JSON.stringify(initialClusters));
+        projects = JSON.parse(JSON.stringify(initialProjects));
+        resLabels = [...defaultLabels];
+        saveState();
+        if(shouldRefresh) refreshUI();
+    }
+
+    function loadState() {
+        try {
+            const stored = localStorage.getItem('serverDashboardData_v6'); // Incremented version
+            if (!stored) return false;
+            const data = JSON.parse(stored);
+            if (!data.clusters || !data.projects) return false;
+
+            clusterState = data.clusters;
+            projects = data.projects;
+            resLabels = data.labels || [...defaultLabels];
+            if(data.theme) document.documentElement.setAttribute('data-theme', data.theme);
+            return true;
+        } catch(e) {
+            console.error("Save file corrupted", e);
+            return false;
+        }
+    }
+
     function saveState() {
         const data = {
             clusters: clusterState,
@@ -273,69 +338,40 @@
             labels: resLabels,
             theme: document.documentElement.getAttribute('data-theme')
         };
-        localStorage.setItem('serverDashboardData_v5', JSON.stringify(data));
-    }
-
-    function loadState() {
-        const stored = localStorage.getItem('serverDashboardData_v5');
-        if (stored) {
-            try {
-                const data = JSON.parse(stored);
-                clusterState = data.clusters || [];
-                projects = data.projects || [];
-                resLabels = data.labels || [...defaultLabels];
-                if(data.theme) document.documentElement.setAttribute('data-theme', data.theme);
-                return true;
-            } catch(e) { return false; }
-        }
-        return false;
-    }
-
-    function resetDefaults() {
-        if(confirm("Reset data to defaults?")) {
-            clusterState = JSON.parse(JSON.stringify(initialClusters));
-            projects = JSON.parse(JSON.stringify(initialProjects));
-            resLabels = [...defaultLabels];
-            saveState(); refreshUI();
-        }
-    }
-
-    function init() {
-        if (!loadState()) {
-            clusterState = JSON.parse(JSON.stringify(initialClusters));
-            projects = JSON.parse(JSON.stringify(initialProjects));
-            resLabels = [...defaultLabels];
-        }
-        refreshUI();
+        localStorage.setItem('serverDashboardData_v6', JSON.stringify(data));
     }
 
     function refreshUI() {
-        renderCapacityTable(); renderProjectTable(); updateChart();
+        renderCapacityTable(); 
+        renderProjectTable(); 
+        updateChart();
     }
 
     function toggleTheme() {
         const html = document.documentElement;
         const next = html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
         html.setAttribute('data-theme', next);
-        saveState(); updateChart();
+        saveState(); 
+        updateChart(); // Chart.js needs re-render for colors
     }
 
-    // --- DATA UPDATES ---
-    function updateClusterName(id, val) { clusterState.find(c => c.id === id).name = val; saveState(); renderProjectTable(); updateChart(); }
-    function updateClusterCap(id, key, val) { clusterState.find(c => c.id === id)[key] = parseFloat(val) || 1; saveState(); updateChart(); }
-    function updateLabel(idx, val) { resLabels[idx] = val; saveState(); renderProjectTable(); updateChart(); }
-    
-    function updateProj(idx, field, val) {
+    // --- DATA MANIPULATION ---
+    // Exposed globally so inline onchange works
+    window.updateClusterName = function(id, val) { clusterState.find(c => c.id === id).name = val; saveState(); renderProjectTable(); updateChart(); }
+    window.updateClusterCap = function(id, key, val) { clusterState.find(c => c.id === id)[key] = parseFloat(val) || 1; saveState(); updateChart(); }
+    window.updateLabel = function(idx, val) { resLabels[idx] = val; saveState(); renderProjectTable(); updateChart(); }
+    window.updateProj = function(idx, field, val) {
         if(field !== 'name' && field !== 'clusterId') val = parseFloat(val) || 0;
         projects[idx][field] = val; saveState(); updateChart();
     }
+    window.removeProj = function(idx) { projects.splice(idx, 1); saveState(); renderProjectTable(); updateChart(); }
+    
     function addProject() {
         projects.push({ id: Date.now(), name: 'New App', clusterId: 'c1', vcpu: 0, ram: 0, storage_norm: 0, storage_fast: 0, vgpu: 0, color: palette[projects.length % palette.length] });
         saveState(); renderProjectTable(); updateChart();
     }
-    function removeProj(idx) { projects.splice(idx, 1); saveState(); renderProjectTable(); updateChart(); }
 
-    // --- RENDER TABLES ---
+    // --- RENDERERS ---
     function renderCapacityTable() {
         const table = document.getElementById('capacityTable');
         let theadHtml = `<tr><th class="col-name" style="min-width:110px">Cluster Name</th>`;
@@ -429,7 +465,7 @@
                     y: { stacked: false, ticks: { color: getThemeColor('--chart-text'), font: {size: 11} } }
                 },
                 plugins: {
-                    legend: { display: false }, // Hidden on mobile to save space
+                    legend: { display: false },
                     tooltip: {
                         callbacks: {
                             label: function(ctx) {
@@ -449,8 +485,6 @@
             }
         });
     }
-
-    init();
 </script>
 </body>
 </html>
