@@ -28,10 +28,9 @@
         /* Utilities */
         input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
         input[type=number] { -moz-appearance: textfield; }
-        
         input[type="color"] { 
             -webkit-appearance: none; border: none; padding: 0; 
-            width: 20px; height: 20px; /* Smaller color picker */
+            width: 24px; height: 24px; 
             border-radius: 4px; overflow: hidden; cursor: pointer; 
             background: none;
         }
@@ -41,10 +40,9 @@
         :root { --chart-text: #334155; --bg-grey-bar: #e2e8f0; --sticky-bg: #ffffff; }
         .dark { --chart-text: #cbd5e1; --bg-grey-bar: #334155; --sticky-bg: #1e293b; }
 
-        /* Sticky Columns - ADJUSTED WIDTHS */
+        /* Sticky Columns */
         .sticky-col-1 { position: sticky; left: 0; z-index: 30; background-color: var(--sticky-bg); }
-        /* Sticky Col 2 starts at 30px now (width of Col 1) */
-        .sticky-col-2 { position: sticky; left: 30px; z-index: 30; background-color: var(--sticky-bg); border-right: 2px solid #e2e8f0; }
+        .sticky-col-2 { position: sticky; left: 45px; z-index: 30; background-color: var(--sticky-bg); border-right: 2px solid #e2e8f0; }
         .dark .sticky-col-2 { border-right-color: #334155; }
 
         /* Error State */
@@ -107,6 +105,7 @@
 
     <div class="max-w-7xl mx-auto space-y-4">
         
+        <!-- HEADER -->
         <div class="flex flex-wrap items-center justify-between gap-2 bg-white dark:bg-slate-800 p-3 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700">
             <div class="flex items-center gap-3">
                 <h1 class="text-lg sm:text-xl font-bold text-blue-600 dark:text-blue-400 whitespace-nowrap">Server Utilisation</h1>
@@ -118,8 +117,10 @@
             <button id="btnTheme" class="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-600 transition"><span class="text-xl">🌗</span></button>
         </div>
 
+        <!-- MAIN GRID -->
         <div class="grid grid-cols-1 gap-4">
             
+            <!-- CHART -->
             <div class="bg-white dark:bg-slate-800 p-3 sm:p-4 rounded-lg shadow border border-slate-200 dark:border-slate-700">
                 <h2 class="text-base font-semibold mb-2">Utilization</h2>
                 <div class="bg-slate-50 dark:bg-slate-900/50 p-2 rounded border-l-4 border-blue-500 text-xs sm:text-sm text-slate-600 dark:text-slate-400 mb-3">
@@ -132,6 +133,7 @@
                 </div>
             </div>
 
+            <!-- CONFIG TABLE -->
             <div class="bg-white dark:bg-slate-800 p-3 sm:p-4 rounded-lg shadow border border-slate-200 dark:border-slate-700">
                 <div class="flex justify-between items-center mb-2">
                     <h2 class="text-base font-semibold">1. Configuration</h2>
@@ -145,6 +147,7 @@
                 </div>
             </div>
 
+            <!-- PROJECTS TABLE -->
             <div class="bg-white dark:bg-slate-800 p-3 sm:p-4 rounded-lg shadow border border-slate-200 dark:border-slate-700">
                 <div class="flex justify-between items-center mb-2">
                     <h2 class="text-base font-semibold">2. Project Workloads</h2>
@@ -333,7 +336,16 @@
         }
 
         window.updateClusterName = (id, val) => { clusterState.find(c => c.id === id).name = val; saveState(); renderProjectTable(); updateChart(); };
-        window.updateClusterCap = (id, k, val) => { clusterState.find(c => c.id === id)[k] = parseFloat(val) || 1; saveState(); renderProjectTable(); updateChart(); };
+        
+        // FIXED: Now re-renders Capacity Table to show red highlight instantly
+        window.updateClusterCap = (id, k, val) => { 
+            clusterState.find(c => c.id === id)[k] = parseFloat(val) || 1; 
+            saveState(); 
+            renderCapacityTable(); 
+            renderProjectTable(); 
+            updateChart(); 
+        };
+        
         window.updateLabel = (idx, val) => { resLabels[idx] = val.trim(); saveState(); renderProjectTable(); updateChart(); };
         
         window.updateProj = (idx, field, val) => {
@@ -367,7 +379,6 @@
         
         function renderCapacityTable() {
             const table = document.getElementById('capacityTable');
-            // TIGHTENED WIDTH: 120px -> 90px
             let theadHtml = `<tr><th class="p-2 min-w-[90px] sticky-col-1">Cluster Name</th>`;
             resLabels.forEach((label, idx) => {
                 theadHtml += `<th class="p-2 min-w-[100px] relative">
@@ -380,7 +391,6 @@
 
             let tbodyHtml = '';
             clusterState.forEach(c => {
-                // REDUCED PADDING: p-2 -> p-1
                 let row = `<td class="p-1 sticky-col-1"><input type="text" class="${inputBase} font-bold" value="${c.name}" onchange="updateClusterName('${c.id}', this.value)" oninput="autoFitInput(this)"></td>`;
                 resKeys.forEach((k, rIdx) => {
                     const stats = getClusterUsageStats(c.id, k);
@@ -398,7 +408,6 @@
 
         function renderProjectTable() {
             const table = document.getElementById('projectsTable');
-            // TIGHTENED WIDTHS: 45px->30px, 140px->100px
             let theadHtml = `<tr>
                 <th class="p-2 w-[30px] sticky-col-1 z-30">Col</th>
                 <th class="p-2 min-w-[100px] sticky-col-2 z-30">Name</th>
