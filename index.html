@@ -1,744 +1,607 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="light">
+<html lang="en" class="light">
 <head>
     <meta charset="UTF-8">
-    <!-- Initial scale 0.7 for "Zoomed Out" view on mobile -->
-    <meta name="viewport" content="width=device-width, initial-scale=0.7, maximum-scale=5.0, user-scalable=yes">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <meta name="viewport" content="width=device-width, initial-scale=0.85, maximum-scale=5.0, user-scalable=yes">
     <title>Server Utilisation</title>
     
     <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#2c3e50">
+    <meta name="theme-color" content="#1e293b">
     <link rel="apple-touch-icon" href="icon-192.png">
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: { extend: { colors: { slate: { 850: '#151e2e' } } } }
+        }
+    </script>
 
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js" crossorigin="anonymous"></script>
-    
+
     <style>
-        :root {
-            --primary: #2c3e50; --accent: #2980b9; --bg: #f4f7f6; --card-bg: #ffffff;
-            --text: #333333; --text-muted: #666666; --border: #e0e0e0;
-            --input-bg: #ffffff; --input-border: #cccccc; 
-            --chart-grid-strong: #333333; --chart-grid-weak: #e0e0e0; --chart-text: #2c3e50; 
-            --grey-bar: #e0e0e0; --error: #e74c3c; --error-bg: #fadbd8;
-            --th-text: #ffffff;
+        /* Utilities */
+        input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        input[type=number] { -moz-appearance: textfield; }
+        input[type="color"] { 
+            -webkit-appearance: none; border: none; padding: 0; 
+            width: 24px; height: 24px; 
+            border-radius: 4px; overflow: hidden; cursor: pointer; 
+            background: none;
         }
-        [data-theme="dark"] {
-            --primary: #34495e; --accent: #3498db; --bg: #1a1a1a; --card-bg: #2c2c2c;
-            --text: #f0f0f0; --text-muted: #aaaaaa; --border: #444444;
-            --input-bg: #3d3d3d; --input-border: #555555; 
-            --chart-grid-strong: #aaaaaa; --chart-grid-weak: #444444; --chart-text: #dddddd; 
-            --grey-bar: #4a4a4a; --error: #ff6b6b; --error-bg: #5c2b2b;
-            --th-text: #eeeeee;
-        }
+        input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; border: none; }
+        input[type="color"]::-webkit-color-swatch { border: none; border-radius: 4px; padding: 0; }
 
-        /* GLOBAL RESET */
-        * { box-sizing: border-box; }
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            margin: 0; padding: 10px;
-            background-color: var(--bg); color: var(--text);
-            transition: background-color 0.3s, color 0.3s;
-            overflow-x: hidden; width: 100vw;
-        }
-        .container { max-width: 1400px; margin: 0 auto; width: 100%; }
+        :root { --chart-text: #334155; --bg-grey-bar: #e2e8f0; --sticky-bg: #ffffff; }
+        .dark { --chart-text: #cbd5e1; --bg-grey-bar: #334155; --sticky-bg: #1e293b; }
 
-        /* HEADER */
-        .header-main { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; width: 100%; gap: 5px; }
-        .header-left { display: flex; align-items: center; gap: 8px; flex: 1; overflow: hidden; }
-        h1 { font-size: 1.1rem; color: var(--accent); margin: 0; font-weight: 700; white-space: nowrap; }
-        .controls-right { display: flex; gap: 8px; align-items: center; }
+        /* Sticky Columns */
+        .sticky-col-1 { position: sticky; left: 0; z-index: 30; background-color: var(--sticky-bg); }
+        .sticky-col-2 { position: sticky; left: 45px; z-index: 30; background-color: var(--sticky-bg); border-right: 2px solid #e2e8f0; }
+        .dark .sticky-col-2 { border-right-color: #334155; }
 
-        /* BUTTONS */
-        .btn { 
-            background-color: var(--accent); color: white; border: none; padding: 8px 12px; 
-            border-radius: 4px; cursor: pointer; font-weight: 600; font-size: 0.8rem; 
-            flex-shrink: 0; white-space: nowrap; min-height: 32px;
+        /* Error State */
+        .input-error {
+            border: 2px solid #ef4444 !important; background-color: #fef2f2 !important; color: #b91c1c !important;
         }
-        .btn:hover { opacity: 0.9; }
-        .btn-danger { background-color: #e74c3c; }
-        .btn-update { background-color: #27ae60; } 
-        .btn-copy { background-color: #f39c12; color: white; } 
-        .btn-icon {
-            background: none; border: 1px solid var(--border); font-size: 1.1rem; padding: 0; 
-            border-radius: 50%; width: 36px; height: 36px; cursor: pointer; color: var(--text);
-            display: flex; align-items: center; justify-content: center; flex-shrink: 0;
-        }
+        .dark .input-error { background-color: #450a0a !important; color: #fecaca !important; }
 
-        /* CARDS */
-        .dashboard-grid { display: grid; grid-template-columns: 1fr; gap: 15px; }
-        .card { 
-            background: var(--card-bg); padding: 10px; border-radius: 8px; 
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05); border: 1px solid var(--border); width: 100%; 
-        }
-        h2 { font-size: 1rem; margin: 0 0 10px 0; color: var(--text); border-bottom: 1px solid var(--border); padding-bottom: 5px; }
-
-        /* INPUTS */
-        input, select { 
-            width: 100%; padding: 4px 2px; border: 1px solid var(--input-border); 
-            border-radius: 3px; background-color: var(--input-bg); color: var(--text); 
-            font-size: 16px; -webkit-appearance: none; height: 32px; 
-        }
-        input[type="color"] { padding: 0; width: 24px; height: 24px; border: none; }
-        input.header-edit {
-            background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);
-            color: var(--th-text); font-weight: bold; text-align: center;
-        }
-
-        /* TABLES */
-        .table-responsive { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; margin-bottom: 5px; }
-        table { width: 100%; border-collapse: collapse; font-size: 0.85rem; min-width: 700px; table-layout: fixed; }
-        th, td { text-align: left; padding: 6px; border-bottom: 1px solid var(--border); vertical-align: middle; }
-        th { background-color: var(--primary); color: var(--th-text); transition: background 0.3s; }
+        /* Text Wrapping */
+        th, td { white-space: normal !important; word-wrap: break-word !important; vertical-align: top; }
         
-        /* Drag Handle */
-        .drag-handle { cursor: move; font-size: 1.2rem; color: var(--text-muted); text-align: center; }
-        .drag-handle:hover { color: var(--accent); }
-        tr.dragging { opacity: 0.5; background: var(--bg); }
+        .editable-header { min-width: 80px; white-space: normal; word-break: break-word; outline: none; cursor: text; display: block; padding-right: 20px; }
+        .editable-header:focus { background-color: rgba(255,255,255,0.1); border-radius: 4px; }
+        .autosize-input { width: 100%; white-space: nowrap; overflow: hidden; transition: font-size 0.1s; }
 
-        /* ERROR HIGHLIGHTING CLASSES */
-        .error-bg { background-color: var(--error-bg) !important; color: var(--error) !important; font-weight: bold; border: 1px solid var(--error); }
-        .error-text { color: var(--error) !important; font-weight: bold; }
-        th.error-header { background-color: var(--error) !important; color: white !important; }
-
-        .chart-wrapper { position: relative; height: 500px; width: 100%; }
-        .sub-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
-
-        @media (max-width: 600px) {
-            .btn { padding: 6px 8px; }
-            .chart-wrapper { height: 400px; }
+        /* Scroll Hint */
+        .scroll-hint-wrapper {
+            background: 
+                linear-gradient(to right, var(--sticky-bg) 30%, rgba(255,255,255,0)),
+                linear-gradient(to right, rgba(255,255,255,0), var(--sticky-bg) 70%) 0 100%,
+                radial-gradient(farthest-side at 0 50%, rgba(0,0,0,0.2), rgba(0,0,0,0)),
+                radial-gradient(farthest-side at 100% 50%, rgba(0,0,0,0.2), rgba(0,0,0,0)) 0 100%;
+            background-repeat: no-repeat;
+            background-color: var(--sticky-bg);
+            background-size: 40px 100%, 40px 100%, 14px 100%, 14px 100%;
+            background-attachment: local, local, scroll, scroll;
         }
+        .dark .scroll-hint-wrapper {
+            background: 
+                linear-gradient(to right, var(--sticky-bg) 30%, rgba(0,0,0,0)),
+                linear-gradient(to right, rgba(0,0,0,0), var(--sticky-bg) 70%) 0 100%,
+                radial-gradient(farthest-side at 0 50%, rgba(255,255,255,0.1), rgba(0,0,0,0)),
+                radial-gradient(farthest-side at 100% 50%, rgba(255,255,255,0.1), rgba(0,0,0,0)) 0 100%;
+            background-repeat: no-repeat;
+            background-color: var(--sticky-bg);
+            background-size: 40px 100%, 40px 100%, 14px 100%, 14px 100%;
+            background-attachment: local, local, scroll, scroll;
+        }
+
+        /* POPUP */
+        #custom-popup {
+            z-index: 9999;
+            transition: opacity 0.3s ease-in-out, transform 0.3s ease-in-out;
+        }
+        #custom-popup.hidden-popup { opacity: 0; pointer-events: none; transform: translate(-50%, -20px); }
+        #custom-popup.visible-popup { opacity: 1; pointer-events: auto; transform: translate(-50%, 0); }
     </style>
 </head>
-<body>
+<body class="bg-slate-50 text-slate-800 dark:bg-slate-900 dark:text-slate-100 transition-colors duration-300 min-h-screen p-2 sm:p-4">
 
-<div class="container">
-    <div id="error-log" style="display:none; color:red; padding:10px; border:1px solid red; margin-bottom:10px;"></div>
+    <div id="error-log" class="hidden bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert"></div>
 
-    <div class="header-main">
-        <div class="header-left">
-            <h1>Server Utilisation</h1>
-            <button class="btn btn-update" id="btnUpdate">↻ Update</button>
-            <button class="btn btn-danger" id="btnReset">Reset</button>
+    <div id="custom-popup" class="hidden-popup fixed top-6 left-1/2 w-[90%] max-w-md bg-white dark:bg-slate-800 border-l-4 border-red-500 shadow-2xl rounded p-4 text-sm sm:text-base">
+        <div class="flex justify-between items-start">
+            <div id="popup-content" class="text-slate-800 dark:text-slate-200 whitespace-pre-wrap font-medium"></div>
+            <button id="btn-close-popup" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 ml-2">✕</button>
         </div>
-        <div class="controls-right">
-            <button class="btn-icon" id="btnTheme">🌗</button>
-        </div>
+        <div class="mt-2 text-xs text-slate-400 italic">Tap anywhere else to close</div>
     </div>
-    
-    <div class="dashboard-grid">
-        <!-- CHART -->
-        <div class="card">
-            <h2>Utilization</h2>
-            <div style="font-size:0.8rem; color:var(--text-muted); margin-bottom:10px;">
-                <span style="display:inline-block;width:12px;height:12px;background:var(--grey-bar);border:1px solid #ccc"></span> Free Space 
-                | <strong>Drag & Drop</strong> projects in the table below to reorder bars.
-            </div>
-            <div class="chart-wrapper">
-                <canvas id="utilizationChart"></canvas>
-            </div>
-        </div>
 
-        <!-- CONFIGURATION -->
-        <div class="card">
-            <h2>1. Cluster Configuration</h2>
-            <div class="table-responsive">
-                <table id="capacityTable">
-                    <thead><!-- JS Generated --></thead>
-                    <tbody><!-- JS Generated --></tbody>
-                </table>
-            </div>
-        </div>
-
-        <!-- GLOBAL RESOURCES -->
-        <div class="card">
-            <div class="sub-header">
-                <h2>2. Global Shared Resources</h2>
-                <button class="btn" onclick="addGlobalResource()">+ Add Resource</button>
-            </div>
-            <p style="font-size:0.8rem; color:var(--text-muted); margin-top:-5px">Resources available to ALL projects regardless of cluster.</p>
-            <div class="table-responsive">
-                <table id="globalTable">
-                    <thead>
-                        <tr>
-                            <th>Resource Name</th>
-                            <th>Total Capacity (Units)</th>
-                            <th style="width:50px"></th>
-                        </tr>
-                    </thead>
-                    <tbody id="globalRows"><!-- JS Generated --></tbody>
-                </table>
-            </div>
-        </div>
-
-        <!-- PROJECTS -->
-        <div class="card">
-            <div class="sub-header">
-                <h2>3. Project Workloads</h2>
-                <button class="btn" id="btnAddProject">+ Add Project</button>
-            </div>
-            <div class="table-responsive">
-                <table id="projectsTable">
-                    <thead><!-- JS Generated --></thead>
-                    <tbody id="projectRows"><!-- JS Generated --></tbody>
-                </table>
-            </div>
-        </div>
-    </div>
-</div>
-
-<script>
-    // --- ERROR HANDLING ---
-    window.onerror = function(msg) {
-        if(msg === 'Script error.') return true;
-        document.getElementById('error-log').style.display='block';
-        document.getElementById('error-log').innerText = msg;
-    };
-
-    // --- CHART.JS PLUGIN: 10 SECTIONS GRID ---
-    const tenSectionPlugin = {
-        id: 'tenSectionGrid',
-        afterDatasetsDraw(chart, args, options) {
-            const { ctx, scales: { x, y } } = chart;
-            
-            // We want vertical black lines every 10% relative to the 0-100% blocks
-            // The chart X axis goes 0-300 (or 0-100 for globals).
-            
-            ctx.save();
-            ctx.beginPath();
-            ctx.lineWidth = 1;
-            ctx.strokeStyle = 'rgba(0,0,0,0.3)'; // Distinct border color
-
-            // Helper to draw lines
-            function drawGrid(startVal, endVal) {
-                // Draw line every 10 units
-                for(let v = startVal; v <= endVal; v += 10) {
-                    if (v === startVal || v === endVal) continue; // Skip edges handled by axis
-                    const xPos = x.getPixelForValue(v);
-                    
-                    // Draw full height of chart area
-                    ctx.moveTo(xPos, y.top);
-                    ctx.lineTo(xPos, y.bottom);
-                }
-            }
-
-            // Draw for C1 (0-100), C2 (100-200), C3 (200-300)
-            drawGrid(0, 100);
-            drawGrid(100, 200);
-            drawGrid(200, 300);
-
-            ctx.stroke();
-            ctx.restore();
-        }
-    };
-    Chart.register(tenSectionPlugin);
-
-    // --- DATA MODELS ---
-    const initialClusters = [
-        { id: 'c1', name: 'Cluster 1', vcpu: 100, ram: 500, storage_norm: 100, storage_fast: 20, vgpu: 10 },
-        { id: 'c2', name: 'Cluster 2', vcpu: 100, ram: 500, storage_norm: 100, storage_fast: 20, vgpu: 10 },
-        { id: 'c3', name: 'Cluster 3', vcpu: 200, ram: 1000, storage_norm: 200, storage_fast: 50, vgpu: 20 }
-    ];
-
-    const initialGlobals = [
-        { id: 'g1', name: 'Ext. Bandwidth (Gbps)', capacity: 100 }
-    ];
-
-    const initialProjects = [
-        { id: 1, name: 'Web Portal', clusterId: 'c1', vcpu: 20, ram: 50, storage_norm: 10, storage_fast: 0, vgpu: 0, g1: 10, color: '#E74C3C' },
-        { id: 2, name: 'API Service', clusterId: 'c2', vcpu: 30, ram: 64, storage_norm: 20, storage_fast: 5, vgpu: 2, g1: 20, color: '#F1C40F' },
-        { id: 3, name: 'Data Lake', clusterId: 'c3', vcpu: 50, ram: 200, storage_norm: 50, storage_fast: 10, vgpu: 5, g1: 50, color: '#3498DB' }
-    ];
-
-    // Standard cluster resources
-    const clusterResKeys = ['vcpu', 'ram', 'storage_norm', 'storage_fast', 'vgpu'];
-    const defaultClusterLabels = ['vCPU', 'Memory', 'Normal Storage', 'Fast Storage', 'vGPU'];
-    const palette = ['#E74C3C', '#3498DB', '#F1C40F', '#9B59B6', '#2ECC71', '#E67E22', '#1ABC9C', '#34495E'];
-
-    // --- STATE ---
-    let clusterState = [];
-    let globalResources = [];
-    let projects = [];
-    let clusterLabels = [];
-    let myChart = null;
-    let overProvisionedCache = {}; // Stores validation results
-
-    // --- INITIALIZATION ---
-    document.addEventListener('DOMContentLoaded', () => {
-        initApp();
-    });
-
-    function initApp() {
-        document.getElementById('btnUpdate').addEventListener('click', () => window.location.reload(true));
-        document.getElementById('btnReset').addEventListener('click', resetDefaults);
-        document.getElementById('btnTheme').addEventListener('click', toggleTheme);
-        document.getElementById('btnAddProject').addEventListener('click', addProject);
-
-        if (!loadState()) resetDataToDefaults(false);
-        refreshUI();
-    }
-
-    function loadState() {
-        try {
-            const stored = localStorage.getItem('serverDash_v8');
-            if(!stored) return false;
-            const data = JSON.parse(stored);
-            clusterState = data.clusters || [];
-            globalResources = data.globals || [];
-            projects = data.projects || [];
-            clusterLabels = data.labels || [...defaultClusterLabels];
-            if(data.theme) document.documentElement.setAttribute('data-theme', data.theme);
-            return true;
-        } catch(e) { return false; }
-    }
-
-    function saveState() {
-        const data = {
-            clusters: clusterState,
-            globals: globalResources,
-            projects: projects,
-            labels: clusterLabels,
-            theme: document.documentElement.getAttribute('data-theme')
-        };
-        localStorage.setItem('serverDash_v8', JSON.stringify(data));
-        validateProvisioning(); // Re-validate on save
-        refreshUI();
-    }
-
-    function resetDefaults() {
-        if(confirm("Reset all data?")) resetDataToDefaults(true);
-    }
-
-    function resetDataToDefaults(refresh) {
-        clusterState = JSON.parse(JSON.stringify(initialClusters));
-        globalResources = JSON.parse(JSON.stringify(initialGlobals));
-        projects = JSON.parse(JSON.stringify(initialProjects));
-        clusterLabels = [...defaultClusterLabels];
-        saveState();
-        if(refresh) refreshUI();
-    }
-
-    // --- VALIDATION LOGIC (Highlighting) ---
-    function validateProvisioning() {
-        overProvisionedCache = {
-            clusters: {}, // { c1: { vcpu: true } }
-            globals: {},  // { g1: true }
-            headers: {}   // { vcpu: true, g1: true }
-        };
-
-        // 1. Calculate Usage
-        let clusterUsage = {}; // c1_vcpu: 0
-        let globalUsage = {};  // g1: 0
-
-        projects.forEach(p => {
-            // Cluster Resources
-            clusterResKeys.forEach(k => {
-                const key = `${p.clusterId}_${k}`;
-                clusterUsage[key] = (clusterUsage[key] || 0) + (parseFloat(p[k]) || 0);
-            });
-            // Global Resources
-            globalResources.forEach(g => {
-                globalUsage[g.id] = (globalUsage[g.id] || 0) + (parseFloat(p[g.id]) || 0);
-            });
-        });
-
-        // 2. Check Clusters vs Capacity
-        clusterState.forEach(c => {
-            clusterResKeys.forEach(k => {
-                const used = clusterUsage[`${c.id}_${k}`] || 0;
-                const cap = parseFloat(c[k]) || 1;
-                if(used > cap) {
-                    if(!overProvisionedCache.clusters[c.id]) overProvisionedCache.clusters[c.id] = {};
-                    overProvisionedCache.clusters[c.id][k] = true;
-                    // Mark Header
-                    overProvisionedCache.headers[k] = true;
-                }
-            });
-        });
-
-        // 3. Check Globals vs Capacity
-        globalResources.forEach(g => {
-            const used = globalUsage[g.id] || 0;
-            const cap = parseFloat(g.capacity) || 1;
-            if(used > cap) {
-                overProvisionedCache.globals[g.id] = true;
-                overProvisionedCache.headers[g.id] = true;
-            }
-        });
-    }
-
-    // --- RENDERING ---
-    function refreshUI() {
-        // Validation runs first to determine styles
-        validateProvisioning();
-        renderCapacityTable();
-        renderGlobalTable();
-        renderProjectTable();
-        updateChart();
-    }
-
-    // --- 1. CLUSTER CONFIG TABLE ---
-    function renderCapacityTable() {
-        const table = document.querySelector('#capacityTable');
-        let thead = `<tr><th style="min-width:120px">Cluster Name</th>`;
-        clusterLabels.forEach((l, i) => {
-            const key = clusterResKeys[i];
-            // Highlight Header if ANY cluster is over-provisioned on this resource
-            const errClass = overProvisionedCache.headers[key] ? 'error-header' : '';
-            thead += `<th style="min-width:80px" class="${errClass}"><input type="text" class="header-edit" value="${l}" onchange="updateLabel(${i},this.value)"></th>`;
-        });
-        thead += '</tr>';
+    <div class="max-w-7xl mx-auto space-y-4">
         
-        let tbody = '';
-        clusterState.forEach(c => {
-            let row = `<td><input type="text" value="${c.name}" onchange="updateCluster('${c.id}','name',this.value)" style="font-weight:bold"></td>`;
-            clusterResKeys.forEach(k => {
-                // Highlight Cell if THIS cluster is over-provisioned
-                const isErr = overProvisionedCache.clusters[c.id] && overProvisionedCache.clusters[c.id][k];
-                const cls = isErr ? 'error-bg' : '';
-                row += `<td><input type="number" class="${cls}" value="${c[k]}" onchange="updateCluster('${c.id}','${k}',this.value)" min="1"></td>`;
-            });
-            tbody += `<tr>${row}</tr>`;
-        });
-        
-        table.querySelector('thead').innerHTML = thead;
-        table.querySelector('tbody').innerHTML = tbody;
-    }
-
-    // --- 2. GLOBAL RESOURCE TABLE ---
-    function renderGlobalTable() {
-        const tbody = document.querySelector('#globalRows');
-        let html = '';
-        globalResources.forEach(g => {
-            // Check error
-            const isErr = overProvisionedCache.globals[g.id];
-            const cls = isErr ? 'error-bg' : '';
-            
-            html += `<tr>
-                <td><input type="text" value="${g.name}" onchange="updateGlobal('${g.id}','name',this.value)"></td>
-                <td><input type="number" class="${cls}" value="${g.capacity}" onchange="updateGlobal('${g.id}','capacity',this.value)"></td>
-                <td><button class="btn btn-danger" onclick="removeGlobal('${g.id}')">×</button></td>
-            </tr>`;
-        });
-        tbody.innerHTML = html;
-    }
-
-    // --- 3. PROJECT TABLE (With Drag & Drop) ---
-    function renderProjectTable() {
-        const table = document.querySelector('#projectsTable');
-        
-        // Headers (Cluster Resources + Global Resources)
-        let thead = `<tr>
-            <th style="width:30px"></th>
-            <th style="width:30px"></th>
-            <th style="min-width:120px">Project</th>
-            <th style="min-width:100px">Cluster</th>`;
-        
-        // Cluster Headers
-        clusterLabels.forEach((l, i) => {
-            const k = clusterResKeys[i];
-            const cls = overProvisionedCache.headers[k] ? 'error-header' : '';
-            thead += `<th class="${cls}">${l}</th>`;
-        });
-        
-        // Global Headers
-        globalResources.forEach(g => {
-            const cls = overProvisionedCache.headers[g.id] ? 'error-header' : '';
-            thead += `<th class="${cls}">${g.name}</th>`;
-        });
-
-        thead += `<th style="width:70px">Act</th></tr>`;
-        
-        let tbody = '';
-        projects.forEach((p, i) => {
-            // Check if project contributes to ANY error
-            let projHasError = false;
-            // Check cluster specific errors for this project's cluster
-            const cErr = overProvisionedCache.clusters[p.clusterId];
-            if(cErr) {
-                 // Simplification: If the cluster has error, check if this project uses that resource. 
-                 // Ideally we calculate contribution, but simply highlighting projects in failing clusters is usually enough visual cue.
-                 // For now, let's highlight project name if it is in a failing cluster.
-                 projHasError = true;
-            }
-            
-            // Check global errors
-            globalResources.forEach(g => {
-                if(overProvisionedCache.globals[g.id] && p[g.id] > 0) projHasError = true;
-            });
-
-            const nameClass = projHasError ? 'error-text' : '';
-
-            // Dropdown
-            const opts = clusterState.map(c => `<option value="${c.id}" ${c.id === p.clusterId ? 'selected' : ''}>${c.name}</option>`).join('');
-
-            tbody += `<tr draggable="true" ondragstart="dragStart(${i})" ondragover="dragOver(event)" ondrop="drop(event, ${i})">
-                <td class="drag-handle">☰</td>
-                <td><input type="color" value="${p.color}" onchange="updateProj(${i},'color',this.value)"></td>
-                <td><input type="text" class="${nameClass}" value="${p.name}" onchange="updateProj(${i},'name',this.value)"></td>
-                <td><select onchange="updateProj(${i},'clusterId',this.value)">${opts}</select></td>`;
-            
-            // Cluster Data
-            clusterResKeys.forEach(k => {
-                tbody += `<td><input type="number" value="${p[k]}" onchange="updateProj(${i},'${k}',this.value)"></td>`;
-            });
-
-            // Global Data
-            globalResources.forEach(g => {
-                tbody += `<td><input type="number" value="${p[g.id]||0}" onchange="updateProj(${i},'${g.id}',this.value)"></td>`;
-            });
-
-            tbody += `<td>
-                <div style="display:flex;gap:2px">
-                    <button class="btn btn-copy" style="padding:4px" onclick="duplicateProj(${i})">📄</button>
-                    <button class="btn btn-danger" style="padding:4px" onclick="removeProj(${i})">×</button>
+        <!-- HEADER -->
+        <div class="flex flex-wrap items-center justify-between gap-2 bg-white dark:bg-slate-800 p-3 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700">
+            <div class="flex items-center gap-3">
+                <h1 class="text-lg sm:text-xl font-bold text-blue-600 dark:text-blue-400 whitespace-nowrap">Server Utilisation</h1>
+                <div class="flex gap-2">
+                    <button id="btnUpdate" class="bg-green-600 hover:bg-green-700 text-white text-xs sm:text-sm font-semibold py-1.5 px-3 rounded shadow transition">↻ Update App</button>
+                    <button id="btnReset" class="bg-red-500 hover:bg-red-600 text-white text-xs sm:text-sm font-semibold py-1.5 px-3 rounded shadow transition">Reset</button>
                 </div>
-            </td></tr>`;
-        });
+            </div>
+            <button id="btnTheme" class="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-600 transition"><span class="text-xl">🌗</span></button>
+        </div>
 
-        table.querySelector('thead').innerHTML = thead;
-        table.querySelector('tbody').innerHTML = tbody;
-    }
+        <!-- MAIN GRID -->
+        <div class="grid grid-cols-1 gap-4">
+            
+            <!-- CHART -->
+            <div class="bg-white dark:bg-slate-800 p-3 sm:p-4 rounded-lg shadow border border-slate-200 dark:border-slate-700">
+                <h2 class="text-base font-semibold mb-2">Utilization</h2>
+                <div class="bg-slate-50 dark:bg-slate-900/50 p-2 rounded border-l-4 border-blue-500 text-xs sm:text-sm text-slate-600 dark:text-slate-400 mb-3">
+                    <span class="inline-block w-3 h-3 bg-slate-200 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 mr-1 align-middle"></span> 
+                    <strong>Grey</strong>: Free Space. <strong>Striped</strong>: Limit Exceeded.<br>
+                    <span class="text-red-500 font-bold">*</span> Click legend to filter. Chart redraws automatically.
+                </div>
+                <div class="relative h-[450px] w-full">
+                    <canvas id="utilizationChart"></canvas>
+                </div>
+            </div>
 
-    // --- DRAG AND DROP LOGIC ---
-    let draggedIdx = null;
-    function dragStart(idx) { draggedIdx = idx; }
-    function dragOver(e) { e.preventDefault(); } // Necessary to allow dropping
-    function drop(e, targetIdx) {
-        e.preventDefault();
-        if(draggedIdx === null || draggedIdx === targetIdx) return;
+            <!-- CONFIG TABLE -->
+            <div class="bg-white dark:bg-slate-800 p-3 sm:p-4 rounded-lg shadow border border-slate-200 dark:border-slate-700">
+                <div class="flex justify-between items-center mb-2">
+                    <h2 class="text-base font-semibold">1. Configuration</h2>
+                    <button onclick="addNewResource()" class="bg-green-600 text-white text-xs font-bold py-1 px-2 rounded hover:bg-green-700 shadow" title="Add Resource Column">+ Column</button>
+                </div>
+                <div class="overflow-x-auto relative scroll-hint-wrapper">
+                    <table id="capacityTable" class="w-full text-left text-xs sm:text-sm border-collapse min-w-[600px]">
+                        <thead class="bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200"></thead>
+                        <tbody class="divide-y divide-slate-200 dark:divide-slate-700"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- PROJECTS TABLE -->
+            <div class="bg-white dark:bg-slate-800 p-3 sm:p-4 rounded-lg shadow border border-slate-200 dark:border-slate-700">
+                <div class="flex justify-between items-center mb-2">
+                    <h2 class="text-base font-semibold">2. Project Workloads</h2>
+                    <button id="btnAddProject" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold py-1 px-3 rounded shadow transition">+ Add Workload</button>
+                </div>
+                <div class="overflow-x-auto relative scroll-hint-wrapper">
+                    <table id="projectsTable" class="w-full text-left text-xs sm:text-sm border-collapse min-w-[700px]">
+                        <thead class="bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200"></thead>
+                        <tbody id="projectRows" class="divide-y divide-slate-200 dark:divide-slate-700"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        window.onerror = function(msg) { 
+            if(msg.includes('Script error') || msg.includes('getParsed')) return true; 
+            document.getElementById('error-log').classList.remove('hidden'); 
+            document.getElementById('error-log').innerHTML = `Error: ${msg}`; 
+            return false; 
+        };
         
-        // Move item
-        const item = projects.splice(draggedIdx, 1)[0];
-        projects.splice(targetIdx, 0, item);
-        
-        saveState(); // Renders automatically
-    }
+        document.addEventListener('DOMContentLoaded', () => { try { initApp(); } catch (e) { console.error(e); } });
 
-    // --- DATA UPDATERS ---
-    window.updateCluster = (id, k, v) => { 
-        clusterState.find(c=>c.id===id)[k] = (k==='name'?v:parseFloat(v)||1); saveState(); 
-    };
-    window.updateLabel = (i, v) => { clusterLabels[i] = v; saveState(); };
-    window.updateGlobal = (id, k, v) => {
-        globalResources.find(g=>g.id===id)[k] = (k==='name'?v:parseFloat(v)||1); saveState();
-    };
-    window.addGlobalResource = () => {
-        const id = 'g' + Date.now();
-        globalResources.push({ id, name: 'New Resource', capacity: 100 });
-        saveState();
-    };
-    window.removeGlobal = (id) => {
-        if(confirm("Remove resource?")) {
-            globalResources = globalResources.filter(g=>g.id!==id);
+        let clusterState = [];
+        let projects = [];
+        let resLabels = [];
+        let resKeys = [];
+        let myChart = null;
+        let hiddenProjectIndices = new Set(); 
+
+        const initialClusters = [
+            { id: 'c1', name: 'Cluster 1', vcpu: 100, ram: 500, storage_norm: 100, storage_fast: 20, vgpu: 10 },
+            { id: 'c2', name: 'Cluster 2', vcpu: 100, ram: 500, storage_norm: 100, storage_fast: 20, vgpu: 10 },
+            { id: 'c3', name: 'Cluster 3', vcpu: 200, ram: 1000, storage_norm: 200, storage_fast: 50, vgpu: 20 }
+        ];
+        const initialProjects = [
+            { id: 1, name: 'Web Portal', clusterId: 'c1', vcpu: 20, ram: 50, storage_norm: 10, storage_fast: 0, vgpu: 0, color: '#E74C3C' },
+            { id: 2, name: 'API Service', clusterId: 'c2', vcpu: 30, ram: 64, storage_norm: 20, storage_fast: 5, vgpu: 2, color: '#F1C40F' },
+            { id: 3, name: 'Data Lake', clusterId: 'c3', vcpu: 50, ram: 200, storage_norm: 50, storage_fast: 10, vgpu: 5, color: '#3498DB' }
+        ];
+        const initialKeys = ['vcpu', 'ram', 'storage_norm', 'storage_fast', 'vgpu'];
+        const initialLabels = ['vCPU', 'Memory', 'Normal Storage', 'Fast Storage', 'vGPU'];
+        const palette = ['#E74C3C', '#3498DB', '#F1C40F', '#9B59B6', '#2ECC71', '#E67E22', '#1ABC9C', '#34495E'];
+
+        function initApp() {
+            if (typeof Chart === 'undefined') return alert("Chart.js failed to load");
+            
+            document.getElementById('btnUpdate').addEventListener('click', forceUpdateApp);
+            document.getElementById('btnReset').addEventListener('click', resetDefaults);
+            document.getElementById('btnTheme').addEventListener('click', toggleTheme);
+            document.getElementById('btnAddProject').addEventListener('click', addProject);
+            document.getElementById('btn-close-popup').addEventListener('click', hidePopup);
+            
+            document.addEventListener('click', (e) => {
+                const popup = document.getElementById('custom-popup');
+                if (popup.classList.contains('visible-popup') && !popup.contains(e.target)) hidePopup();
+            }, true);
+
+            if (!loadState()) resetDataToDefaults(false);
+            applyThemeClass();
+            refreshUI();
+            if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js?v=' + Date.now()).then(reg => reg.update()).catch(console.error);
+        }
+
+        async function forceUpdateApp() {
+            if(!confirm("Update App?")) return;
+            if ('serviceWorker' in navigator) {
+                const regs = await navigator.serviceWorker.getRegistrations();
+                for (let reg of regs) await reg.unregister();
+            }
+            if ('caches' in window) {
+                const keys = await caches.keys();
+                await Promise.all(keys.map(k => caches.delete(k)));
+            }
+            window.location.reload(true);
+        }
+
+        function resetDefaults() { if(confirm("Reset to defaults?")) resetDataToDefaults(true); }
+
+        function resetDataToDefaults(refresh) {
+            clusterState = JSON.parse(JSON.stringify(initialClusters));
+            projects = JSON.parse(JSON.stringify(initialProjects));
+            resLabels = [...initialLabels];
+            resKeys = [...initialKeys];
+            hiddenProjectIndices.clear();
             saveState();
-        }
-    };
-    window.updateProj = (i, k, v) => {
-        if(k!=='name' && k!=='clusterId' && k!=='color') v = parseFloat(v)||0;
-        projects[i][k] = v; saveState();
-    };
-    window.duplicateProj = (i) => {
-        const c = {...projects[i], id: Date.now(), name: projects[i].name + ' (Copy)'};
-        projects.splice(i+1, 0, c); saveState();
-    };
-    window.removeProj = (i) => { projects.splice(i,1); saveState(); };
-    window.addProject = () => {
-        projects.push({ id: Date.now(), name: 'New App', clusterId: 'c1', color: palette[projects.length%palette.length], ...getZeroedResources() });
-        saveState();
-    };
-    
-    function getZeroedResources() {
-        let o = {};
-        clusterResKeys.forEach(k=>o[k]=0);
-        globalResources.forEach(g=>o[g.id]=0);
-        return o;
-    }
-    
-    function toggleTheme() {
-        const h = document.documentElement;
-        h.setAttribute('data-theme', h.getAttribute('data-theme')==='dark'?'light':'dark');
-        saveState();
-    }
-
-    // --- CHART DRAWING ---
-    function getThemeColor(v) { return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); }
-
-    function updateChart() {
-        const ctx = document.getElementById('utilizationChart').getContext('2d');
-        
-        // We have 2 groups of rows on the Y-Axis:
-        // 1. Cluster Resources (vCPU, Mem...) -> 3 Clusters each (0-300 range)
-        // 2. Global Resources -> 1 Bar each (0-100 range)
-        
-        const yLabels = [...clusterLabels, ...globalResources.map(g=>g.name)];
-        
-        let datasets = [];
-        
-        // Helper to track offsets
-        let clusterOffsets = {}; // { clusterId: { resIdx: val } }
-        let globalOffsets = {};  // { globalId: val }
-        
-        clusterState.forEach(c => clusterOffsets[c.id] = {});
-
-        // A. BACKGROUND BARS
-        // 1. Cluster Backgrounds (0-100, 100-200, 200-300)
-        clusterState.forEach((c, i) => {
-            const base = i * 100; 
-            // Only add data for the first N rows (Cluster resources)
-            let data = clusterLabels.map(() => [base + 2, base + 98]); // GAP of 2%
-            // Pad the rest with null (Global resources don't use cluster background)
-            globalResources.forEach(() => data.push(null));
-            
-            datasets.push({
-                label: `_BG_${c.id}`,
-                data: data,
-                backgroundColor: getThemeColor('--grey-bar'),
-                barPercentage: 0.8, categoryPercentage: 0.9, grouped: false, order: 10,
-                clusterId: c.id
-            });
-        });
-
-        // 2. Global Backgrounds (0-100)
-        let globalBgData = clusterLabels.map(() => null); // Skip cluster rows
-        globalResources.forEach(g => globalBgData.push([0, 100])); // No Gaps needed for single bar, or maybe slight
-        if(globalResources.length > 0) {
-            datasets.push({
-                label: '_BG_GLOBAL',
-                data: globalBgData,
-                backgroundColor: getThemeColor('--grey-bar'),
-                barPercentage: 0.8, categoryPercentage: 0.9, grouped: false, order: 10
-            });
+            if(refresh) refreshUI();
         }
 
-        // B. PROJECT BARS (Based on Drag Order in Table - `projects` array order)
-        projects.forEach(p => {
-            let data = [];
-            
-            // 1. Cluster Data
-            clusterLabels.forEach((l, rIdx) => {
-                const resKey = clusterResKeys[rIdx];
-                const cIdx = clusterState.findIndex(c => c.id === p.clusterId);
-                if(cIdx === -1) { data.push(null); return; }
-                
-                const c = clusterState[cIdx];
-                const base = cIdx * 100;
-                const cap = c[resKey];
-                const val = p[resKey];
-                const pct = (val / cap) * 100;
-                
-                // Gap Logic: 
-                // Available visual width is 96 (2 to 98).
-                // We map 0-100 data to 2-98 visual.
-                // visual_width = pct * 0.96
-                const visualPct = pct * 0.96;
-                
-                // Track offset
-                const currentOff = clusterOffsets[p.clusterId][rIdx] || 0;
-                
-                // Start = base + 2 (gap) + offset
-                const start = base + 2 + currentOff;
-                const end = start + visualPct;
-                
-                // Cap
-                if (end > base + 98) { data.push(null); } // Overflow visual clip
-                else if (pct > 0) { data.push([start, end]); }
-                else { data.push(null); }
-                
-                clusterOffsets[p.clusterId][rIdx] = currentOff + visualPct;
-            });
+        function loadState() {
+            try {
+                const stored = localStorage.getItem('serverDashboardData_v15');
+                if (!stored) return false;
+                const data = JSON.parse(stored);
+                if (!data.clusters || !data.projects) return false;
+                clusterState = data.clusters;
+                projects = data.projects;
+                resLabels = data.labels || [...initialLabels];
+                resKeys = data.keys || [...initialKeys];
+                if(data.theme) localStorage.setItem('theme', data.theme);
+                return true;
+            } catch(e) { return false; }
+        }
 
-            // 2. Global Data
-            globalResources.forEach((g, gIdx) => {
-                const val = p[g.id] || 0;
-                const cap = g.capacity;
-                const pct = (val / cap) * 100;
-                
-                const currentOff = globalOffsets[g.id] || 0;
-                const start = currentOff;
-                const end = start + pct;
-                
-                if (pct > 0) data.push([start, end]);
-                else data.push(null);
-                
-                globalOffsets[g.id] = currentOff + pct;
-            });
+        function saveState() {
+            const data = {
+                clusters: clusterState, projects: projects, 
+                labels: resLabels, keys: resKeys,
+                theme: localStorage.getItem('theme') || 'light'
+            };
+            localStorage.setItem('serverDashboardData_v15', JSON.stringify(data));
+        }
 
-            datasets.push({
-                label: p.name,
-                data: data,
-                backgroundColor: p.color,
-                // Add black border to creating distinct "sections" feeling combined with grid
-                borderColor: 'rgba(0,0,0,0.5)', 
-                borderWidth: {top: 0, bottom: 0, left: 1, right: 1}, 
-                barPercentage: 0.8, categoryPercentage: 0.9, grouped: false, order: 1
-            });
-        });
+        function toggleTheme() {
+            const current = localStorage.getItem('theme') === 'dark' ? 'light' : 'dark';
+            localStorage.setItem('theme', current);
+            applyThemeClass(); saveState(); updateChart();
+        }
+        function applyThemeClass() {
+            if (localStorage.getItem('theme') === 'dark') document.documentElement.classList.add('dark');
+            else document.documentElement.classList.remove('dark');
+        }
 
-        if (myChart) myChart.destroy();
+        function refreshUI() {
+            renderCapacityTable(); renderProjectTable(); updateChart();
+        }
+
+        function showPopup(msg) {
+            const popup = document.getElementById('custom-popup');
+            document.getElementById('popup-content').innerText = msg;
+            popup.classList.remove('hidden-popup');
+            popup.classList.add('visible-popup');
+            if(window.popupTimeout) clearTimeout(window.popupTimeout);
+            window.popupTimeout = setTimeout(hidePopup, 5000);
+        }
+
+        function hidePopup() {
+            document.getElementById('custom-popup').classList.remove('visible-popup');
+            document.getElementById('custom-popup').classList.add('hidden-popup');
+        }
+
+        function getUnifiedWarning(resIndex, clusterId) {
+            const label = resLabels[resIndex] || 'Unknown';
+            const key = resKeys[resIndex];
+            const stats = getClusterUsageStats(clusterId, key);
+            return `⚠️ LIMIT EXCEEDED\n\nResource: ${label}\nTotal Used: ${stats.used}\nCapacity: ${stats.capacity}\nExceeded By: ${stats.exceeded}`;
+        }
+
+        function bindLongPress(element, callback) {
+            let timer;
+            const start = (e) => { timer = setTimeout(() => { timer = null; callback(); }, 600); };
+            const end = (e) => { if (timer) clearTimeout(timer); };
+            element.addEventListener('contextmenu', (e) => { if(!timer) e.preventDefault(); });
+            element.addEventListener('mousedown', start);
+            element.addEventListener('touchstart', start, {passive: true});
+            element.addEventListener('mouseup', end);
+            element.addEventListener('touchend', end);
+        }
+
+        function getClusterUsageStats(clusterId, resourceKey) {
+            let totalUsed = 0;
+            projects.forEach(p => { 
+                if(p.clusterId === clusterId) totalUsed += (parseFloat(p[resourceKey]) || 0); 
+            });
+            const cluster = clusterState.find(c => c.id === clusterId);
+            const capacity = cluster ? (parseFloat(cluster[resourceKey]) || 1) : 1;
+            return { used: totalUsed, capacity: capacity, exceeded: Math.max(0, totalUsed - capacity) };
+        }
+
+        window.addNewResource = function() {
+            const name = prompt("Enter Name for new Resource:");
+            if(!name) return;
+            const key = name.toLowerCase().replace(/[^a-z0-9]/g, '_');
+            if(resKeys.includes(key)) return alert("Resource already exists");
+            resKeys.push(key); resLabels.push(name);
+            clusterState.forEach(c => c[key] = 0); projects.forEach(p => p[key] = 0);
+            saveState(); refreshUI();
+        }
+
+        window.removeResource = function(idx) {
+            if(!confirm(`Remove resource column '${resLabels[idx]}'?`)) return;
+            resKeys.splice(idx, 1); resLabels.splice(idx, 1);
+            saveState(); refreshUI();
+        }
+
+        window.updateClusterName = (id, val) => { clusterState.find(c => c.id === id).name = val; saveState(); renderProjectTable(); updateChart(); };
         
-        myChart = new Chart(ctx, {
-            type: 'bar',
-            data: { labels: yLabels, datasets: datasets },
-            options: {
-                indexAxis: 'y', responsive: true, maintainAspectRatio: false,
-                scales: {
-                    x: { 
-                        min: 0, max: 300, stacked: false,
-                        grid: { display: false }, // We use custom plugin for grid
-                        ticks: { 
-                            color: getThemeColor('--chart-text'),
-                            callback: v => (v===0)?'0%':(v%100===0)?'|':(v===300)?'100%':(v%100)+'%' 
-                        }
-                    },
-                    x2: { 
-                        position: 'top', min: 0, max: 300, grid: { display: false },
-                        ticks: { 
-                            color: getThemeColor('--chart-text'), font: { weight: 'bold', size: 12 }, 
-                            callback: v => {
-                                if(v===50) return clusterState[0].name;
-                                if(v===150) return clusterState[1].name;
-                                if(v===250) return clusterState[2].name;
-                                return '';
-                            }
-                        }
-                    },
-                    y: { 
-                        stacked: false, 
-                        ticks: { color: getThemeColor('--chart-text'), autoSkip: false } 
+        // FIXED: Now re-renders Capacity Table to show red highlight instantly
+        window.updateClusterCap = (id, k, val) => { 
+            clusterState.find(c => c.id === id)[k] = parseFloat(val) || 1; 
+            saveState(); 
+            renderCapacityTable(); 
+            renderProjectTable(); 
+            updateChart(); 
+        };
+        
+        window.updateLabel = (idx, val) => { resLabels[idx] = val.trim(); saveState(); renderProjectTable(); updateChart(); };
+        
+        window.updateProj = (idx, field, val) => {
+            if(field !== 'name' && field !== 'clusterId' && field !== 'color') val = parseFloat(val) || 0;
+            projects[idx][field] = val;
+            saveState(); renderCapacityTable(); renderProjectTable(); updateChart();
+        };
+
+        window.removeProj = (idx) => { if(confirm('Delete?')) { projects.splice(idx, 1); saveState(); refreshUI(); } };
+        window.duplicateProj = (idx) => {
+            const copy = { ...projects[idx], id: Date.now() + Math.random(), name: projects[idx].name + " (Copy)" };
+            projects.splice(idx + 1, 0, copy); saveState(); refreshUI();
+        };
+        
+        function addProject() {
+            projects.push({ id: Date.now(), name: 'New App', clusterId: 'c1', color: palette[projects.length % palette.length] });
+            resKeys.forEach(k => projects[projects.length-1][k] = 0);
+            saveState(); refreshUI();
+        }
+
+        function autoFitInput(input) {
+            input.style.fontSize = '16px'; 
+            if (input.scrollWidth > input.clientWidth) {
+                const ratio = input.clientWidth / input.scrollWidth;
+                const newSize = Math.max(10, Math.floor(16 * ratio)); 
+                input.style.fontSize = newSize + 'px';
+            }
+        }
+
+        const inputBase = "autosize-input bg-slate-50 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded px-1 py-1 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-blue-500 focus:outline-none";
+        
+        function renderCapacityTable() {
+            const table = document.getElementById('capacityTable');
+            let theadHtml = `<tr><th class="p-2 min-w-[90px] sticky-col-1">Cluster Name</th>`;
+            resLabels.forEach((label, idx) => {
+                theadHtml += `<th class="p-2 min-w-[100px] relative">
+                    <div contenteditable="true" class="editable-header font-bold text-center text-slate-700 dark:text-slate-200" onblur="updateLabel(${idx}, this.innerText)">${label}</div>
+                    <button onclick="removeResource(${idx})" class="absolute top-1 right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs shadow hover:bg-red-600 z-10 font-bold">×</button>
+                </th>`;
+            });
+            theadHtml += `</tr>`;
+            table.querySelector('thead').innerHTML = theadHtml;
+
+            let tbodyHtml = '';
+            clusterState.forEach(c => {
+                let row = `<td class="p-1 sticky-col-1"><input type="text" class="${inputBase} font-bold" value="${c.name}" onchange="updateClusterName('${c.id}', this.value)" oninput="autoFitInput(this)"></td>`;
+                resKeys.forEach((k, rIdx) => {
+                    const stats = getClusterUsageStats(c.id, k);
+                    const isErr = stats.exceeded > 0;
+                    const errClass = isErr ? 'input-error' : '';
+                    const idUnique = `cfg_${c.id}_${k}`;
+                    row += `<td class="p-1"><input id="${idUnique}" type="number" class="${inputBase} ${errClass}" value="${c[k]}" onchange="updateClusterCap('${c.id}', '${k}', this.value)" min="1" oninput="autoFitInput(this)"></td>`;
+                    if(isErr) { setTimeout(() => { const el = document.getElementById(idUnique); if(el) bindLongPress(el, () => showPopup(getUnifiedWarning(rIdx, c.id))); }, 0); }
+                });
+                tbodyHtml += `<tr>${row}</tr>`;
+            });
+            table.querySelector('tbody').innerHTML = tbodyHtml;
+            setTimeout(() => document.querySelectorAll('.autosize-input').forEach(autoFitInput), 10);
+        }
+
+        function renderProjectTable() {
+            const table = document.getElementById('projectsTable');
+            let theadHtml = `<tr>
+                <th class="p-2 w-[30px] sticky-col-1 z-30">Col</th>
+                <th class="p-2 min-w-[100px] sticky-col-2 z-30">Name</th>
+                <th class="p-2 min-w-[120px]">Assigned</th>`;
+            resLabels.forEach(label => theadHtml += `<th class="p-2 min-w-[80px]">${label}</th>`);
+            theadHtml += `<th class="p-2 w-24 text-center">Actions</th></tr>`;
+            table.querySelector('thead').innerHTML = theadHtml;
+
+            const tbody = document.getElementById('projectRows');
+            tbody.innerHTML = '';
+            
+            projects.forEach((p, idx) => {
+                let isProjectInTrouble = false;
+                let errorMessages = [];
+                resKeys.forEach((k, rIdx) => {
+                    const stats = getClusterUsageStats(p.clusterId, k);
+                    if (stats.exceeded > 0 && parseFloat(p[k]) > 0) {
+                        isProjectInTrouble = true;
+                        errorMessages.push(getUnifiedWarning(rIdx, p.clusterId));
                     }
-                },
-                plugins: {
-                    legend: { display: false },
-                    tooltip: {
-                        callbacks: {
-                            label: function(ctx) {
-                                if(ctx.dataset.label.startsWith('_BG_')) return null;
-                                const raw = ctx.raw;
-                                if(!raw) return null;
-                                const width = raw[1] - raw[0];
-                                
-                                // Need to calculate real value vs percentage
-                                // This is tricky because we scaled visual width for gaps
-                                // Simpler: Look up value in project
-                                const p = projects.find(pr => pr.name === ctx.dataset.label);
-                                const rIdx = ctx.dataIndex;
-                                
-                                let val = 0;
-                                if(rIdx < clusterLabels.length) {
-                                    val = p[clusterResKeys[rIdx]];
-                                } else {
-                                    const gIdx = rIdx - clusterLabels.length;
-                                    val = p[globalResources[gIdx].id];
+                });
+
+                const nameErrorClass = isProjectInTrouble ? 'input-error' : '';
+                const nameId = `proj_name_${idx}`;
+                const opts = clusterState.map(c => `<option value="${c.id}" ${c.id === p.clusterId ? 'selected' : ''}>${c.name}</option>`).join('');
+                
+                let row = `
+                    <td class="p-1 text-center sticky-col-1">
+                        <div class="w-6 h-6 mx-auto rounded overflow-hidden">
+                            <input type="color" value="${p.color}" onchange="updateProj(${idx}, 'color', this.value)" class="w-full h-full p-0 border-none cursor-pointer">
+                        </div>
+                    </td>
+                    <td class="p-1 sticky-col-2"><input id="${nameId}" type="text" class="${inputBase} ${nameErrorClass}" value="${p.name}" onchange="updateProj(${idx}, 'name', this.value)" oninput="autoFitInput(this)"></td>
+                    <td class="p-1"><select class="${inputBase}" onchange="updateProj(${idx}, 'clusterId', this.value)">${opts}</select></td>`;
+                
+                if(isProjectInTrouble) { setTimeout(() => { const el = document.getElementById(nameId); if(el) bindLongPress(el, () => showPopup(errorMessages[0])); }, 0); }
+
+                resKeys.forEach((k, rIdx) => {
+                    const stats = getClusterUsageStats(p.clusterId, k);
+                    const isErr = stats.exceeded > 0 && (parseFloat(p[k]) > 0);
+                    const inputErrClass = isErr ? 'input-error' : '';
+                    const cellId = `proj_${idx}_${k}`;
+                    row += `<td class="p-1"><input id="${cellId}" type="number" class="${inputBase} ${inputErrClass}" value="${p[k]}" onchange="updateProj(${idx}, '${k}', this.value)" min="0" oninput="autoFitInput(this)"></td>`;
+                    if(isErr) { setTimeout(() => { const el = document.getElementById(cellId); if(el) bindLongPress(el, () => showPopup(getUnifiedWarning(rIdx, p.clusterId))); }, 0); }
+                });
+                
+                row += `<td class="p-1 text-center flex justify-center gap-1">
+                    <button class="bg-amber-500 text-white p-1.5 rounded hover:bg-amber-600 shadow" onclick="duplicateProj(${idx})"><svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button>
+                    <button class="bg-red-500 text-white p-1.5 rounded hover:bg-red-600 shadow" onclick="removeProj(${idx})"><svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
+                </td>`;
+                tbody.innerHTML += `<tr>${row}</tr>`;
+            });
+            setTimeout(() => document.querySelectorAll('.autosize-input').forEach(autoFitInput), 10);
+        }
+
+        function getCssVar(name) { return getComputedStyle(document.body).getPropertyValue(name).trim(); }
+        function getStripePattern(color) {
+            const c = document.createElement('canvas'); const x = c.getContext('2d');
+            c.width=10; c.height=10; x.fillStyle=color; x.fillRect(0,0,10,10);
+            x.strokeStyle='rgba(255,255,255,0.7)'; x.lineWidth=2; x.beginPath(); x.moveTo(0,10); x.lineTo(10,0); x.stroke();
+            return c;
+        }
+
+        const gridOverlayPlugin = {
+            id: 'gridOverlay',
+            afterDatasetsDraw(chart) {
+                const ctx = chart.ctx; const xAxis = chart.scales.x; const yAxis = chart.scales.y;
+                const gridColor = localStorage.getItem('theme') === 'dark' ? '#cbd5e1' : '#1e293b';
+                [100, 200].forEach(val => {
+                    const x = xAxis.getPixelForValue(val);
+                    ctx.save(); ctx.beginPath(); ctx.moveTo(x, yAxis.top); ctx.lineTo(x, yAxis.bottom);
+                    ctx.lineWidth = 2; ctx.strokeStyle = gridColor; ctx.stroke(); ctx.restore();
+                });
+            }
+        };
+        Chart.register(gridOverlayPlugin);
+
+        function updateChart() {
+            const ctx = document.getElementById('utilizationChart').getContext('2d');
+            let usageMap = {}; clusterState.forEach(c => usageMap[c.id] = Array(resKeys.length).fill(0));
+            let offsets = Array(resKeys.length).fill(0).map(() => ({})); clusterState.forEach(c => offsets.forEach(row => row[c.id] = 0));
+            let datasets = [];
+
+            const bgBarColor = getCssVar('--bg-grey-bar');
+            clusterState.forEach((c, i) => {
+                datasets.push({
+                    label: `_BG_${c.id}`, data: resKeys.map(() => [i*100, (i*100)+100]),
+                    backgroundColor: bgBarColor, barPercentage: 0.9, categoryPercentage: 0.9, grouped: false, order: 10, clusterId: c.id, clusterName: c.name
+                });
+            });
+
+            projects.forEach((p, index) => {
+                if(hiddenProjectIndices.has(index)) return;
+
+                if(!usageMap[p.clusterId]) return;
+                let pts = []; let bgColors = [];
+                const cIndex = clusterState.findIndex(c => c.id === p.clusterId);
+                const base = cIndex * 100;
+
+                resKeys.forEach((key, rIdx) => {
+                    const pct = (p[key] / (parseFloat(clusterState[cIndex][key])||1)) * 100;
+                    let start = base + offsets[rIdx][p.clusterId]; 
+                    let end = start + pct;
+                    let isOverloaded = false;
+                    
+                    if(end > base + 100) { end = base + 100; isOverloaded = true; }
+
+                    if (pct > 0 && start < end) pts.push([start, end]);
+                    else if (isOverloaded && start < (base + 100)) pts.push([start, base+100]);
+                    else pts.push(null);
+                    
+                    bgColors.push(isOverloaded ? ctx.createPattern(getStripePattern(p.color), 'repeat') : p.color);
+                    usageMap[p.clusterId][rIdx] += pct; offsets[rIdx][p.clusterId] += pct;
+                });
+                
+                datasets.push({ 
+                    label: p.name, data: pts, backgroundColor: bgColors,
+                    barPercentage: 0.9, categoryPercentage: 0.9, grouped: false, order: 1,
+                    originalIndex: index, 
+                    overloadInfo: pts.map((pt, i) => {
+                        if(!pt) return null;
+                        const stats = getClusterUsageStats(p.clusterId, resKeys[i]);
+                        return stats.exceeded > 0 ? { rIdx: i, cId: p.clusterId } : null;
+                    })
+                });
+            });
+
+            if (myChart) myChart.destroy();
+            const textColor = getCssVar('--chart-text');
+
+            myChart = new Chart(ctx, {
+                type: 'bar',
+                data: { labels: resLabels, datasets: datasets },
+                options: {
+                    indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+                    onClick: (e, elements) => {
+                        if (elements.length > 0) {
+                            const el = elements[0];
+                            const ds = myChart.data.datasets[el.datasetIndex];
+                            const info = ds.overloadInfo && ds.overloadInfo[el.index];
+                            if(info) showPopup(getUnifiedWarning(info.rIdx, info.cId));
+                        }
+                    },
+                    scales: {
+                        x: { min: 0, max: 300, stacked: false, grid: { display: false }, ticks: { color: textColor, callback: v => (v===0)?'0%':(v===100 || v===200 || v===300)?'100%':'' } },
+                        x2: { position: 'top', min: 0, max: 300, grid: { display: false }, ticks: { color: textColor, font: { weight: 'bold', size: 12 }, callback: v => (v===50)?clusterState[0]?.name:(v===150)?clusterState[1]?.name:(v===250)?clusterState[2]?.name:'' } },
+                        y: { stacked: false, ticks: { color: textColor, font: {size: 11} } }
+                    },
+                    plugins: {
+                        legend: { 
+                            display: true, position: 'top', 
+                            labels: { 
+                                filter: i => !i.text.startsWith('_BG_'), 
+                                color: textColor,
+                                generateLabels: (chart) => {
+                                    const labels = Chart.defaults.plugins.legend.labels.generateLabels(chart);
+                                    return projects.map((p, i) => ({
+                                        text: p.name,
+                                        fillStyle: p.color,
+                                        hidden: hiddenProjectIndices.has(i),
+                                        index: i,
+                                        textDecoration: hiddenProjectIndices.has(i) ? 'line-through' : ''
+                                    }));
                                 }
-                                
-                                return `${ctx.dataset.label}: ${val} units`;
+                            }, 
+                            onClick: (e, legendItem, legend) => {
+                                const idx = legendItem.index;
+                                if(hiddenProjectIndices.has(idx)) hiddenProjectIndices.delete(idx);
+                                else hiddenProjectIndices.add(idx);
+                                setTimeout(() => updateChart(), 0);
+                            } 
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(ctx) {
+                                    if (ctx.dataset.label.startsWith('_BG_')) {
+                                        const cId = ctx.dataset.clusterId; const rIdx = ctx.dataIndex; 
+                                        if(!usageMap[cId]) return '';
+                                        const total = clusterState.find(c => c.id === cId)[resKeys[rIdx]];
+                                        const used = usageMap[cId][rIdx]; 
+                                        const freePct = Math.max(0, 100 - used); const freeUnits = (freePct/100)*total;
+                                        return [`Available: ${freePct.toFixed(1)}%`, `${Math.floor(freeUnits)} / ${total}`];
+                                    }
+                                    const p = projects[ctx.dataset.originalIndex];
+                                    if (!p) return '';
+                                    const val = p[resKeys[ctx.dataIndex]] || 0;
+                                    return `${ctx.dataset.label}: ${(ctx.raw[1]-ctx.raw[0]).toFixed(1)}% (${val})`;
+                                }
                             }
                         }
                     }
                 }
-            }
-        });
-    }
-</script>
+            });
+        }
+    </script>
 </body>
 </html>
