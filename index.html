@@ -1,77 +1,137 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Advanced Cluster Dashboard</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Initial scale 0.7 for "Zoomed Out" view on mobile -->
+    <meta name="viewport" content="width=device-width, initial-scale=0.7, maximum-scale=5.0, user-scalable=yes">
+    <title>Server Utilisation</title>
+    
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#2c3e50">
+    <link rel="apple-touch-icon" href="icon-192.png">
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js" crossorigin="anonymous"></script>
+    
     <style>
         :root {
-            --primary: #2c3e50;
-            --accent: #2980b9;
-            --bg: #f8f9fa;
-            --card-bg: #ffffff;
-            --border: #dee2e6;
-            --error: #e74c3c;
-            --error-bg: #fadbd8;
+            --primary: #2c3e50; --accent: #2980b9; --bg: #f4f7f6; --card-bg: #ffffff;
+            --text: #333333; --text-muted: #666666; --border: #e0e0e0;
+            --input-bg: #ffffff; --input-border: #cccccc; 
+            --chart-grid-strong: #333333; --chart-grid-weak: #e0e0e0; --chart-text: #2c3e50; 
+            --grey-bar: #e0e0e0; --error: #e74c3c; --error-bg: #fadbd8;
+            --th-text: #ffffff;
+        }
+        [data-theme="dark"] {
+            --primary: #34495e; --accent: #3498db; --bg: #1a1a1a; --card-bg: #2c2c2c;
+            --text: #f0f0f0; --text-muted: #aaaaaa; --border: #444444;
+            --input-bg: #3d3d3d; --input-border: #555555; 
+            --chart-grid-strong: #aaaaaa; --chart-grid-weak: #444444; --chart-text: #dddddd; 
+            --grey-bar: #4a4a4a; --error: #ff6b6b; --error-bg: #5c2b2b;
+            --th-text: #eeeeee;
         }
 
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 20px; background-color: var(--bg); color: #333; }
-        .container { max-width: 1600px; margin: 0 auto; }
-        .dashboard-grid { display: grid; grid-template-columns: 1fr; gap: 20px; }
-        
-        .card { background: var(--card-bg); padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); border: 1px solid var(--border); }
-        h1, h2 { color: var(--primary); margin-top: 0; }
-        .header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
-
-        /* Tables */
-        table { width: 100%; border-collapse: collapse; font-size: 0.85rem; margin-bottom: 10px; table-layout: fixed; }
-        th, td { text-align: left; padding: 8px; border-bottom: 1px solid #eee; vertical-align: middle; }
-        th { background-color: var(--primary); color: white; transition: background 0.3s; }
-        
-        /* Draggable Rows */
-        tr.draggable { cursor: move; }
-        tr.dragging { opacity: 0.5; background: #eee; }
-
-        /* Inputs */
-        input[type="number"], input[type="text"], select {
-            width: 100%; box-sizing: border-box; padding: 6px; border: 1px solid #ccc; border-radius: 4px; font-size: 0.85rem;
+        /* GLOBAL RESET */
+        * { box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            margin: 0; padding: 10px;
+            background-color: var(--bg); color: var(--text);
+            transition: background-color 0.3s, color 0.3s;
+            overflow-x: hidden; width: 100vw;
         }
-        
-        /* Error States */
-        .input-error { border: 2px solid var(--error) !important; background-color: #fff5f5; }
-        .text-error { color: var(--error); font-weight: bold; }
-        .header-error { background-color: var(--error) !important; color: white !important; animation: pulse 2s infinite; }
+        .container { max-width: 1400px; margin: 0 auto; width: 100%; }
 
-        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.8; } 100% { opacity: 1; } }
+        /* HEADER */
+        .header-main { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; width: 100%; gap: 5px; }
+        .header-left { display: flex; align-items: center; gap: 8px; flex: 1; overflow: hidden; }
+        h1 { font-size: 1.1rem; color: var(--accent); margin: 0; font-weight: 700; white-space: nowrap; }
+        .controls-right { display: flex; gap: 8px; align-items: center; }
 
-        /* Buttons */
-        .btn { background-color: var(--accent); color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-size: 0.85rem; }
+        /* BUTTONS */
+        .btn { 
+            background-color: var(--accent); color: white; border: none; padding: 8px 12px; 
+            border-radius: 4px; cursor: pointer; font-weight: 600; font-size: 0.8rem; 
+            flex-shrink: 0; white-space: nowrap; min-height: 32px;
+        }
         .btn:hover { opacity: 0.9; }
-        .btn-danger { background-color: var(--error); }
-        .btn-secondary { background-color: #7f8c8d; }
+        .btn-danger { background-color: #e74c3c; }
+        .btn-update { background-color: #27ae60; } 
+        .btn-copy { background-color: #f39c12; color: white; } 
+        .btn-icon {
+            background: none; border: 1px solid var(--border); font-size: 1.1rem; padding: 0; 
+            border-radius: 50%; width: 36px; height: 36px; cursor: pointer; color: var(--text);
+            display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+        }
 
-        /* Chart */
-        .chart-wrapper { position: relative; height: 600px; width: 100%; }
-        .legend-box { background: #eef2f5; padding: 10px; border-left: 5px solid var(--accent); margin-bottom: 15px; font-size: 0.85rem; }
+        /* CARDS */
+        .dashboard-grid { display: grid; grid-template-columns: 1fr; gap: 15px; }
+        .card { 
+            background: var(--card-bg); padding: 10px; border-radius: 8px; 
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05); border: 1px solid var(--border); width: 100%; 
+        }
+        h2 { font-size: 1rem; margin: 0 0 10px 0; color: var(--text); border-bottom: 1px solid var(--border); padding-bottom: 5px; }
+
+        /* INPUTS */
+        input, select { 
+            width: 100%; padding: 4px 2px; border: 1px solid var(--input-border); 
+            border-radius: 3px; background-color: var(--input-bg); color: var(--text); 
+            font-size: 16px; -webkit-appearance: none; height: 32px; 
+        }
+        input[type="color"] { padding: 0; width: 24px; height: 24px; border: none; }
+        input.header-edit {
+            background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);
+            color: var(--th-text); font-weight: bold; text-align: center;
+        }
+
+        /* TABLES */
+        .table-responsive { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; margin-bottom: 5px; }
+        table { width: 100%; border-collapse: collapse; font-size: 0.85rem; min-width: 700px; table-layout: fixed; }
+        th, td { text-align: left; padding: 6px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+        th { background-color: var(--primary); color: var(--th-text); transition: background 0.3s; }
+        
+        /* Drag Handle */
+        .drag-handle { cursor: move; font-size: 1.2rem; color: var(--text-muted); text-align: center; }
+        .drag-handle:hover { color: var(--accent); }
+        tr.dragging { opacity: 0.5; background: var(--bg); }
+
+        /* ERROR HIGHLIGHTING CLASSES */
+        .error-bg { background-color: var(--error-bg) !important; color: var(--error) !important; font-weight: bold; border: 1px solid var(--error); }
+        .error-text { color: var(--error) !important; font-weight: bold; }
+        th.error-header { background-color: var(--error) !important; color: white !important; }
+
+        .chart-wrapper { position: relative; height: 500px; width: 100%; }
+        .sub-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+
+        @media (max-width: 600px) {
+            .btn { padding: 6px 8px; }
+            .chart-wrapper { height: 400px; }
+        }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h1>Advanced Hardware Utilisation</h1>
+    <div id="error-log" style="display:none; color:red; padding:10px; border:1px solid red; margin-bottom:10px;"></div>
+
+    <div class="header-main">
+        <div class="header-left">
+            <h1>Server Utilisation</h1>
+            <button class="btn btn-update" id="btnUpdate">↻ Update</button>
+            <button class="btn btn-danger" id="btnReset">Reset</button>
+        </div>
+        <div class="controls-right">
+            <button class="btn-icon" id="btnTheme">🌗</button>
+        </div>
+    </div>
     
     <div class="dashboard-grid">
-        
-        <!-- VISUALISATION -->
+        <!-- CHART -->
         <div class="card">
-            <div class="header-row">
-                <h2>1. Cluster Visualization</h2>
-            </div>
-            <div class="legend-box">
-                <strong>Guide:</strong> 
-                Rows = Resources. Each Cluster section is divided into <strong>10 boxes (10% each)</strong>. 
-                <span style="color:var(--accent)">Drag & Drop</span> projects in the table below to reorder them in the chart.
+            <h2>Utilization</h2>
+            <div style="font-size:0.8rem; color:var(--text-muted); margin-bottom:10px;">
+                <span style="display:inline-block;width:12px;height:12px;background:var(--grey-bar);border:1px solid #ccc"></span> Free Space 
+                | <strong>Drag & Drop</strong> projects in the table below to reorder bars.
             </div>
             <div class="chart-wrapper">
                 <canvas id="utilizationChart"></canvas>
@@ -80,492 +140,598 @@
 
         <!-- CONFIGURATION -->
         <div class="card">
-            <div class="header-row">
-                <h2>2. Hardware Limits (Total Capacity)</h2>
-                <div>
-                    <button class="btn btn-secondary" onclick="addCustomResource()">+ Add New Resource Type</button>
-                    <button class="btn" onclick="resetDefaults()">Reset</button>
-                </div>
+            <h2>1. Cluster Configuration</h2>
+            <div class="table-responsive">
+                <table id="capacityTable">
+                    <thead><!-- JS Generated --></thead>
+                    <tbody><!-- JS Generated --></tbody>
+                </table>
             </div>
-            <table id="capacityTable">
-                <thead>
-                    <tr id="capacityHeaderRow">
-                        <th style="width:120px;">Cluster</th>
-                        <!-- Dynamic headers -->
-                    </tr>
-                </thead>
-                <tbody></tbody>
-            </table>
+        </div>
+
+        <!-- GLOBAL RESOURCES -->
+        <div class="card">
+            <div class="sub-header">
+                <h2>2. Global Shared Resources</h2>
+                <button class="btn" onclick="addGlobalResource()">+ Add Resource</button>
+            </div>
+            <p style="font-size:0.8rem; color:var(--text-muted); margin-top:-5px">Resources available to ALL projects regardless of cluster.</p>
+            <div class="table-responsive">
+                <table id="globalTable">
+                    <thead>
+                        <tr>
+                            <th>Resource Name</th>
+                            <th>Total Capacity (Units)</th>
+                            <th style="width:50px"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="globalRows"><!-- JS Generated --></tbody>
+                </table>
+            </div>
         </div>
 
         <!-- PROJECTS -->
         <div class="card">
-            <div class="header-row">
-                <h2>3. Project Workloads (Drag Rows to Reorder)</h2>
-                <button class="btn" onclick="addProject()">+ Add Project</button>
+            <div class="sub-header">
+                <h2>3. Project Workloads</h2>
+                <button class="btn" id="btnAddProject">+ Add Project</button>
             </div>
-            <table id="projectsTable">
-                <thead>
-                    <tr id="projectsHeaderRow">
-                        <th style="width:30px"></th>
-                        <th style="width:15%">Project Name</th>
-                        <th style="width:120px">Cluster</th>
-                        <!-- Dynamic headers -->
-                        <th style="width:50px"></th>
-                    </tr>
-                </thead>
-                <tbody id="projectRows"></tbody>
-            </table>
+            <div class="table-responsive">
+                <table id="projectsTable">
+                    <thead><!-- JS Generated --></thead>
+                    <tbody id="projectRows"><!-- JS Generated --></tbody>
+                </table>
+            </div>
         </div>
     </div>
 </div>
 
 <script>
-    // --- STATE MANAGEMENT ---
-    
-    // Default config
-    const clusters = ['Cluster 1', 'Cluster 2', 'Cluster 3'];
-    
-    // Dynamic Resources Structure
-    let resources = [
-        { key: 'vcpu', label: 'vCPU' },
-        { key: 'ram', label: 'Memory' },
-        { key: 'storage_norm', label: 'Normal Sto.' },
-        { key: 'storage_fast', label: 'Fast Sto.' },
-        { key: 'vgpu', label: 'vGPU' }
+    // --- ERROR HANDLING ---
+    window.onerror = function(msg) {
+        if(msg === 'Script error.') return true;
+        document.getElementById('error-log').style.display='block';
+        document.getElementById('error-log').innerText = msg;
+    };
+
+    // --- CHART.JS PLUGIN: 10 SECTIONS GRID ---
+    const tenSectionPlugin = {
+        id: 'tenSectionGrid',
+        afterDatasetsDraw(chart, args, options) {
+            const { ctx, scales: { x, y } } = chart;
+            
+            // We want vertical black lines every 10% relative to the 0-100% blocks
+            // The chart X axis goes 0-300 (or 0-100 for globals).
+            
+            ctx.save();
+            ctx.beginPath();
+            ctx.lineWidth = 1;
+            ctx.strokeStyle = 'rgba(0,0,0,0.3)'; // Distinct border color
+
+            // Helper to draw lines
+            function drawGrid(startVal, endVal) {
+                // Draw line every 10 units
+                for(let v = startVal; v <= endVal; v += 10) {
+                    if (v === startVal || v === endVal) continue; // Skip edges handled by axis
+                    const xPos = x.getPixelForValue(v);
+                    
+                    // Draw full height of chart area
+                    ctx.moveTo(xPos, y.top);
+                    ctx.lineTo(xPos, y.bottom);
+                }
+            }
+
+            // Draw for C1 (0-100), C2 (100-200), C3 (200-300)
+            drawGrid(0, 100);
+            drawGrid(100, 200);
+            drawGrid(200, 300);
+
+            ctx.stroke();
+            ctx.restore();
+        }
+    };
+    Chart.register(tenSectionPlugin);
+
+    // --- DATA MODELS ---
+    const initialClusters = [
+        { id: 'c1', name: 'Cluster 1', vcpu: 100, ram: 500, storage_norm: 100, storage_fast: 20, vgpu: 10 },
+        { id: 'c2', name: 'Cluster 2', vcpu: 100, ram: 500, storage_norm: 100, storage_fast: 20, vgpu: 10 },
+        { id: 'c3', name: 'Cluster 3', vcpu: 200, ram: 1000, storage_norm: 200, storage_fast: 50, vgpu: 20 }
     ];
 
-    const palette = [
-        '#E74C3C', '#3498DB', '#F1C40F', '#9B59B6', '#2ECC71', 
-        '#E67E22', '#1ABC9C', '#34495E', '#D35400', '#7F8C8D'
+    const initialGlobals = [
+        { id: 'g1', name: 'Ext. Bandwidth (Gbps)', capacity: 100 }
     ];
 
-    let capacities = {};
+    const initialProjects = [
+        { id: 1, name: 'Web Portal', clusterId: 'c1', vcpu: 20, ram: 50, storage_norm: 10, storage_fast: 0, vgpu: 0, g1: 10, color: '#E74C3C' },
+        { id: 2, name: 'API Service', clusterId: 'c2', vcpu: 30, ram: 64, storage_norm: 20, storage_fast: 5, vgpu: 2, g1: 20, color: '#F1C40F' },
+        { id: 3, name: 'Data Lake', clusterId: 'c3', vcpu: 50, ram: 200, storage_norm: 50, storage_fast: 10, vgpu: 5, g1: 50, color: '#3498DB' }
+    ];
+
+    // Standard cluster resources
+    const clusterResKeys = ['vcpu', 'ram', 'storage_norm', 'storage_fast', 'vgpu'];
+    const defaultClusterLabels = ['vCPU', 'Memory', 'Normal Storage', 'Fast Storage', 'vGPU'];
+    const palette = ['#E74C3C', '#3498DB', '#F1C40F', '#9B59B6', '#2ECC71', '#E67E22', '#1ABC9C', '#34495E'];
+
+    // --- STATE ---
+    let clusterState = [];
+    let globalResources = [];
     let projects = [];
+    let clusterLabels = [];
     let myChart = null;
+    let overProvisionedCache = {}; // Stores validation results
 
     // --- INITIALIZATION ---
-    function init() {
-        // Setup initial Data
-        capacities = {
-            'Cluster 1': { vcpu: 100, ram: 500, storage_norm: 100, storage_fast: 20, vgpu: 10 },
-            'Cluster 2': { vcpu: 100, ram: 500, storage_norm: 100, storage_fast: 20, vgpu: 10 },
-            'Cluster 3': { vcpu: 200, ram: 1000, storage_norm: 200, storage_fast: 50, vgpu: 20 }
+    document.addEventListener('DOMContentLoaded', () => {
+        initApp();
+    });
+
+    function initApp() {
+        document.getElementById('btnUpdate').addEventListener('click', () => window.location.reload(true));
+        document.getElementById('btnReset').addEventListener('click', resetDefaults);
+        document.getElementById('btnTheme').addEventListener('click', toggleTheme);
+        document.getElementById('btnAddProject').addEventListener('click', addProject);
+
+        if (!loadState()) resetDataToDefaults(false);
+        refreshUI();
+    }
+
+    function loadState() {
+        try {
+            const stored = localStorage.getItem('serverDash_v8');
+            if(!stored) return false;
+            const data = JSON.parse(stored);
+            clusterState = data.clusters || [];
+            globalResources = data.globals || [];
+            projects = data.projects || [];
+            clusterLabels = data.labels || [...defaultClusterLabels];
+            if(data.theme) document.documentElement.setAttribute('data-theme', data.theme);
+            return true;
+        } catch(e) { return false; }
+    }
+
+    function saveState() {
+        const data = {
+            clusters: clusterState,
+            globals: globalResources,
+            projects: projects,
+            labels: clusterLabels,
+            theme: document.documentElement.getAttribute('data-theme')
         };
-
-        projects = [
-            { id: 1, name: 'Web Portal', cluster: 'Cluster 1', vcpu: 20, ram: 50, storage_norm: 10, storage_fast: 0, vgpu: 0, color: palette[0] },
-            { id: 2, name: 'Data Lake', cluster: 'Cluster 3', vcpu: 50, ram: 200, storage_norm: 50, storage_fast: 10, vgpu: 5, color: palette[1] },
-            { id: 3, name: 'ML Engine', cluster: 'Cluster 2', vcpu: 85, ram: 300, storage_norm: 20, storage_fast: 15, vgpu: 8, color: palette[2] }
-        ];
-
-        renderTables();
-        updateChart();
+        localStorage.setItem('serverDash_v8', JSON.stringify(data));
+        validateProvisioning(); // Re-validate on save
+        refreshUI();
     }
 
     function resetDefaults() {
-        location.reload(); 
+        if(confirm("Reset all data?")) resetDataToDefaults(true);
     }
 
-    // --- DYNAMIC RESOURCE HANDLING ---
-    function addCustomResource() {
-        const name = prompt("Enter Name for new Resource (e.g., Bandwidth, Licenses):");
-        if(!name) return;
-        
-        const key = name.toLowerCase().replace(/\s+/g, '_') + '_' + Date.now(); // Unique key
-        
-        // Add to Schema
-        resources.push({ key: key, label: name });
-        
-        // Update Data Structures
-        clusters.forEach(c => capacities[c][key] = 100); // Default cap
-        projects.forEach(p => p[key] = 0); // Default usage
+    function resetDataToDefaults(refresh) {
+        clusterState = JSON.parse(JSON.stringify(initialClusters));
+        globalResources = JSON.parse(JSON.stringify(initialGlobals));
+        projects = JSON.parse(JSON.stringify(initialProjects));
+        clusterLabels = [...defaultClusterLabels];
+        saveState();
+        if(refresh) refreshUI();
+    }
 
-        renderTables();
+    // --- VALIDATION LOGIC (Highlighting) ---
+    function validateProvisioning() {
+        overProvisionedCache = {
+            clusters: {}, // { c1: { vcpu: true } }
+            globals: {},  // { g1: true }
+            headers: {}   // { vcpu: true, g1: true }
+        };
+
+        // 1. Calculate Usage
+        let clusterUsage = {}; // c1_vcpu: 0
+        let globalUsage = {};  // g1: 0
+
+        projects.forEach(p => {
+            // Cluster Resources
+            clusterResKeys.forEach(k => {
+                const key = `${p.clusterId}_${k}`;
+                clusterUsage[key] = (clusterUsage[key] || 0) + (parseFloat(p[k]) || 0);
+            });
+            // Global Resources
+            globalResources.forEach(g => {
+                globalUsage[g.id] = (globalUsage[g.id] || 0) + (parseFloat(p[g.id]) || 0);
+            });
+        });
+
+        // 2. Check Clusters vs Capacity
+        clusterState.forEach(c => {
+            clusterResKeys.forEach(k => {
+                const used = clusterUsage[`${c.id}_${k}`] || 0;
+                const cap = parseFloat(c[k]) || 1;
+                if(used > cap) {
+                    if(!overProvisionedCache.clusters[c.id]) overProvisionedCache.clusters[c.id] = {};
+                    overProvisionedCache.clusters[c.id][k] = true;
+                    // Mark Header
+                    overProvisionedCache.headers[k] = true;
+                }
+            });
+        });
+
+        // 3. Check Globals vs Capacity
+        globalResources.forEach(g => {
+            const used = globalUsage[g.id] || 0;
+            const cap = parseFloat(g.capacity) || 1;
+            if(used > cap) {
+                overProvisionedCache.globals[g.id] = true;
+                overProvisionedCache.headers[g.id] = true;
+            }
+        });
+    }
+
+    // --- RENDERING ---
+    function refreshUI() {
+        // Validation runs first to determine styles
+        validateProvisioning();
+        renderCapacityTable();
+        renderGlobalTable();
+        renderProjectTable();
         updateChart();
     }
 
-    // --- DOM RENDERING ---
-    function renderTables() {
-        renderCapacityTable();
-        renderProjectTable();
-        checkOverprovisioning();
-    }
-
+    // --- 1. CLUSTER CONFIG TABLE ---
     function renderCapacityTable() {
-        // Headers
-        const headerRow = document.getElementById('capacityHeaderRow');
-        headerRow.innerHTML = `<th style="width:120px;">Cluster</th>`;
-        resources.forEach(r => {
-            headerRow.innerHTML += `<th>${r.label} (Cap)</th>`;
+        const table = document.querySelector('#capacityTable');
+        let thead = `<tr><th style="min-width:120px">Cluster Name</th>`;
+        clusterLabels.forEach((l, i) => {
+            const key = clusterResKeys[i];
+            // Highlight Header if ANY cluster is over-provisioned on this resource
+            const errClass = overProvisionedCache.headers[key] ? 'error-header' : '';
+            thead += `<th style="min-width:80px" class="${errClass}"><input type="text" class="header-edit" value="${l}" onchange="updateLabel(${i},this.value)"></th>`;
         });
-
-        // Body
-        const tbody = document.querySelector('#capacityTable tbody');
-        tbody.innerHTML = '';
-        clusters.forEach(c => {
-            const tr = document.createElement('tr');
-            let html = `<td><strong>${c}</strong></td>`;
-            resources.forEach(r => {
-                html += `<td><input type="number" id="cap-${c}-${r.key}" value="${capacities[c][r.key]}" onchange="updateCap('${c}','${r.key}',this.value)" min="1"></td>`;
+        thead += '</tr>';
+        
+        let tbody = '';
+        clusterState.forEach(c => {
+            let row = `<td><input type="text" value="${c.name}" onchange="updateCluster('${c.id}','name',this.value)" style="font-weight:bold"></td>`;
+            clusterResKeys.forEach(k => {
+                // Highlight Cell if THIS cluster is over-provisioned
+                const isErr = overProvisionedCache.clusters[c.id] && overProvisionedCache.clusters[c.id][k];
+                const cls = isErr ? 'error-bg' : '';
+                row += `<td><input type="number" class="${cls}" value="${c[k]}" onchange="updateCluster('${c.id}','${k}',this.value)" min="1"></td>`;
             });
-            tr.innerHTML = html;
-            tbody.appendChild(tr);
+            tbody += `<tr>${row}</tr>`;
         });
+        
+        table.querySelector('thead').innerHTML = thead;
+        table.querySelector('tbody').innerHTML = tbody;
     }
 
-    function renderProjectTable() {
-        // Headers
-        const headerRow = document.getElementById('projectsHeaderRow');
-        headerRow.innerHTML = `<th style="width:30px"></th><th style="width:15%">Project Name</th><th style="width:120px">Cluster</th>`;
-        
-        resources.forEach(r => {
-            // Give headers an ID so we can highlight them
-            headerRow.innerHTML += `<th id="th-proj-${r.key}">${r.label}</th>`;
+    // --- 2. GLOBAL RESOURCE TABLE ---
+    function renderGlobalTable() {
+        const tbody = document.querySelector('#globalRows');
+        let html = '';
+        globalResources.forEach(g => {
+            // Check error
+            const isErr = overProvisionedCache.globals[g.id];
+            const cls = isErr ? 'error-bg' : '';
+            
+            html += `<tr>
+                <td><input type="text" value="${g.name}" onchange="updateGlobal('${g.id}','name',this.value)"></td>
+                <td><input type="number" class="${cls}" value="${g.capacity}" onchange="updateGlobal('${g.id}','capacity',this.value)"></td>
+                <td><button class="btn btn-danger" onclick="removeGlobal('${g.id}')">×</button></td>
+            </tr>`;
         });
-        headerRow.innerHTML += `<th style="width:50px"></th>`;
+        tbody.innerHTML = html;
+    }
 
-        // Body
-        const tbody = document.getElementById('projectRows');
-        tbody.innerHTML = '';
+    // --- 3. PROJECT TABLE (With Drag & Drop) ---
+    function renderProjectTable() {
+        const table = document.querySelector('#projectsTable');
         
-        projects.forEach((p, idx) => {
-            const tr = document.createElement('tr');
-            tr.className = 'draggable';
-            tr.draggable = true;
-            tr.dataset.index = idx;
+        // Headers (Cluster Resources + Global Resources)
+        let thead = `<tr>
+            <th style="width:30px"></th>
+            <th style="width:30px"></th>
+            <th style="min-width:120px">Project</th>
+            <th style="min-width:100px">Cluster</th>`;
+        
+        // Cluster Headers
+        clusterLabels.forEach((l, i) => {
+            const k = clusterResKeys[i];
+            const cls = overProvisionedCache.headers[k] ? 'error-header' : '';
+            thead += `<th class="${cls}">${l}</th>`;
+        });
+        
+        // Global Headers
+        globalResources.forEach(g => {
+            const cls = overProvisionedCache.headers[g.id] ? 'error-header' : '';
+            thead += `<th class="${cls}">${g.name}</th>`;
+        });
+
+        thead += `<th style="width:70px">Act</th></tr>`;
+        
+        let tbody = '';
+        projects.forEach((p, i) => {
+            // Check if project contributes to ANY error
+            let projHasError = false;
+            // Check cluster specific errors for this project's cluster
+            const cErr = overProvisionedCache.clusters[p.clusterId];
+            if(cErr) {
+                 // Simplification: If the cluster has error, check if this project uses that resource. 
+                 // Ideally we calculate contribution, but simply highlighting projects in failing clusters is usually enough visual cue.
+                 // For now, let's highlight project name if it is in a failing cluster.
+                 projHasError = true;
+            }
             
-            // Drag Events
-            tr.addEventListener('dragstart', dragStart);
-            tr.addEventListener('dragover', dragOver);
-            tr.addEventListener('drop', dragDrop);
-            
-            // Cluster Select Options
-            const opts = clusters.map(c => `<option value="${c}" ${c === p.cluster ? 'selected' : ''}>${c}</option>`).join('');
-            
-            let html = `
-                <td style="cursor:grab">☰ <div style="display:inline-block;width:10px;height:10px;background:${p.color};"></div></td>
-                <td><input type="text" id="name-${idx}" value="${p.name}" onchange="updateProj(${idx}, 'name', this.value)"></td>
-                <td><select onchange="updateProj(${idx}, 'cluster', this.value)">${opts}</select></td>
-            `;
-            
-            resources.forEach(r => {
-                html += `<td><input type="number" value="${p[r.key]}" onchange="updateProj(${idx}, '${r.key}', this.value)" min="0"></td>`;
+            // Check global errors
+            globalResources.forEach(g => {
+                if(overProvisionedCache.globals[g.id] && p[g.id] > 0) projHasError = true;
             });
 
-            html += `<td><button class="btn btn-danger" onclick="removeProj(${idx})">×</button></td>`;
-            tr.innerHTML = html;
-            tbody.appendChild(tr);
+            const nameClass = projHasError ? 'error-text' : '';
+
+            // Dropdown
+            const opts = clusterState.map(c => `<option value="${c.id}" ${c.id === p.clusterId ? 'selected' : ''}>${c.name}</option>`).join('');
+
+            tbody += `<tr draggable="true" ondragstart="dragStart(${i})" ondragover="dragOver(event)" ondrop="drop(event, ${i})">
+                <td class="drag-handle">☰</td>
+                <td><input type="color" value="${p.color}" onchange="updateProj(${i},'color',this.value)"></td>
+                <td><input type="text" class="${nameClass}" value="${p.name}" onchange="updateProj(${i},'name',this.value)"></td>
+                <td><select onchange="updateProj(${i},'clusterId',this.value)">${opts}</select></td>`;
+            
+            // Cluster Data
+            clusterResKeys.forEach(k => {
+                tbody += `<td><input type="number" value="${p[k]}" onchange="updateProj(${i},'${k}',this.value)"></td>`;
+            });
+
+            // Global Data
+            globalResources.forEach(g => {
+                tbody += `<td><input type="number" value="${p[g.id]||0}" onchange="updateProj(${i},'${g.id}',this.value)"></td>`;
+            });
+
+            tbody += `<td>
+                <div style="display:flex;gap:2px">
+                    <button class="btn btn-copy" style="padding:4px" onclick="duplicateProj(${i})">📄</button>
+                    <button class="btn btn-danger" style="padding:4px" onclick="removeProj(${i})">×</button>
+                </div>
+            </td></tr>`;
         });
+
+        table.querySelector('thead').innerHTML = thead;
+        table.querySelector('tbody').innerHTML = tbody;
     }
 
     // --- DRAG AND DROP LOGIC ---
-    let dragSrcIndex = null;
-
-    function dragStart(e) {
-        dragSrcIndex = this.dataset.index;
-        e.dataTransfer.effectAllowed = 'move';
-        this.classList.add('dragging');
+    let draggedIdx = null;
+    function dragStart(idx) { draggedIdx = idx; }
+    function dragOver(e) { e.preventDefault(); } // Necessary to allow dropping
+    function drop(e, targetIdx) {
+        e.preventDefault();
+        if(draggedIdx === null || draggedIdx === targetIdx) return;
+        
+        // Move item
+        const item = projects.splice(draggedIdx, 1)[0];
+        projects.splice(targetIdx, 0, item);
+        
+        saveState(); // Renders automatically
     }
 
-    function dragOver(e) {
-        if (e.preventDefault) e.preventDefault(); 
-        e.dataTransfer.dropEffect = 'move';
-        return false;
-    }
-
-    function dragDrop(e) {
-        if (e.stopPropagation) e.stopPropagation();
-        this.classList.remove('dragging');
-        
-        const dragDestIndex = this.dataset.index;
-        
-        if (dragSrcIndex !== dragDestIndex) {
-            // Swap items in array
-            const item = projects[dragSrcIndex];
-            projects.splice(dragSrcIndex, 1);
-            projects.splice(dragDestIndex, 0, item);
-            
-            renderProjectTable();
-            updateChart();
+    // --- DATA UPDATERS ---
+    window.updateCluster = (id, k, v) => { 
+        clusterState.find(c=>c.id===id)[k] = (k==='name'?v:parseFloat(v)||1); saveState(); 
+    };
+    window.updateLabel = (i, v) => { clusterLabels[i] = v; saveState(); };
+    window.updateGlobal = (id, k, v) => {
+        globalResources.find(g=>g.id===id)[k] = (k==='name'?v:parseFloat(v)||1); saveState();
+    };
+    window.addGlobalResource = () => {
+        const id = 'g' + Date.now();
+        globalResources.push({ id, name: 'New Resource', capacity: 100 });
+        saveState();
+    };
+    window.removeGlobal = (id) => {
+        if(confirm("Remove resource?")) {
+            globalResources = globalResources.filter(g=>g.id!==id);
+            saveState();
         }
-        return false;
-    }
-
-    // --- UPDATES & LOGIC ---
-    function updateCap(c, k, v) { capacities[c][k] = parseFloat(v) || 1; checkOverprovisioning(); updateChart(); }
-    function updateProj(i, f, v) { 
-        projects[i][f] = (f==='name'||f==='cluster') ? v : (parseFloat(v)||0); 
-        checkOverprovisioning(); updateChart(); 
+    };
+    window.updateProj = (i, k, v) => {
+        if(k!=='name' && k!=='clusterId' && k!=='color') v = parseFloat(v)||0;
+        projects[i][k] = v; saveState();
+    };
+    window.duplicateProj = (i) => {
+        const c = {...projects[i], id: Date.now(), name: projects[i].name + ' (Copy)'};
+        projects.splice(i+1, 0, c); saveState();
+    };
+    window.removeProj = (i) => { projects.splice(i,1); saveState(); };
+    window.addProject = () => {
+        projects.push({ id: Date.now(), name: 'New App', clusterId: 'c1', color: palette[projects.length%palette.length], ...getZeroedResources() });
+        saveState();
+    };
+    
+    function getZeroedResources() {
+        let o = {};
+        clusterResKeys.forEach(k=>o[k]=0);
+        globalResources.forEach(g=>o[g.id]=0);
+        return o;
     }
     
-    function addProject() {
-        let newProj = { id: Date.now(), name: 'New App', cluster: 'Cluster 1', color: palette[projects.length % palette.length] };
-        resources.forEach(r => newProj[r.key] = 0);
-        projects.push(newProj);
-        renderProjectTable();
-        updateChart();
-    }
-    function removeProj(i) { projects.splice(i, 1); renderProjectTable(); updateChart(); }
-
-    // --- ALERTING LOGIC ---
-    function checkOverprovisioning() {
-        // Reset Visuals
-        document.querySelectorAll('input').forEach(el => el.classList.remove('input-error'));
-        document.querySelectorAll('.text-error').forEach(el => el.classList.remove('text-error'));
-        document.querySelectorAll('th').forEach(el => el.classList.remove('header-error'));
-
-        // Calculate Usage
-        let usage = {}; 
-        clusters.forEach(c => {
-            usage[c] = {};
-            resources.forEach(r => usage[c][r.key] = 0);
-        });
-
-        // Sum up
-        projects.forEach(p => {
-            resources.forEach(r => {
-                usage[p.cluster][r.key] += p[r.key];
-            });
-        });
-
-        // Check against limits
-        let overprovisionedResources = new Set(); // Store resource keys that are bad
-
-        clusters.forEach(c => {
-            resources.forEach(r => {
-                const total = usage[c][r.key];
-                const limit = capacities[c][r.key];
-                
-                if (total > limit) {
-                    // 1. Highlight Config Input
-                    const capInput = document.getElementById(`cap-${c}-${r.key}`);
-                    if(capInput) capInput.classList.add('input-error');
-
-                    // Track this resource is bad
-                    overprovisionedResources.add(r.key);
-
-                    // 2. Highlight Projects causing this (all projects in that cluster with > 0 usage)
-                    projects.forEach((p, idx) => {
-                        if (p.cluster === c && p[r.key] > 0) {
-                            const nameInput = document.getElementById(`name-${idx}`);
-                            if(nameInput) nameInput.classList.add('input-error'); // Or text-error if preferred
-                        }
-                    });
-                }
-            });
-        });
-
-        // 3. Highlight Headers for Affected Resources
-        overprovisionedResources.forEach(key => {
-            const th = document.getElementById(`th-proj-${key}`);
-            if(th) th.classList.add('header-error');
-        });
+    function toggleTheme() {
+        const h = document.documentElement;
+        h.setAttribute('data-theme', h.getAttribute('data-theme')==='dark'?'light':'dark');
+        saveState();
     }
 
-    // --- CHART LOGIC ---
+    // --- CHART DRAWING ---
+    function getThemeColor(v) { return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); }
+
     function updateChart() {
         const ctx = document.getElementById('utilizationChart').getContext('2d');
+        
+        // We have 2 groups of rows on the Y-Axis:
+        // 1. Cluster Resources (vCPU, Mem...) -> 3 Clusters each (0-300 range)
+        // 2. Global Resources -> 1 Bar each (0-100 range)
+        
+        const yLabels = [...clusterLabels, ...globalResources.map(g=>g.name)];
+        
         let datasets = [];
-
-        // 1. Create the 10-Section Grid (Background)
-        // We create 30 rects (10 per cluster) for every resource row.
-        const clusterConfigs = [
-            { name: 'Cluster 1', base: 0 },
-            { name: 'Cluster 2', base: 100 },
-            { name: 'Cluster 3', base: 200 }
-        ];
-
-        // This dataset draws the "Empty Cells"
-        let gridData = [];
         
-        // We need to generate floating bar coordinates for every single resource row
-        // Loop Resources (Y Axis)
-        resources.forEach((r, rIdx) => {
-            clusterConfigs.forEach(conf => {
-                for(let i=0; i<10; i++) {
-                    // Create blocks 0-10, 10-20, etc. relative to cluster base
-                    // Add small gap: start+0.5, end-0.5
-                    let start = conf.base + (i * 10);
-                    let end = start + 10;
-                    
-                    // We push an object so we can use parsing or just standard array [start, end]
-                    // But to make a grid across ALL rows, we usually map data array to labels.
-                    // This is tricky in ChartJS. Simplest way: 
-                    // Create one dataset per "box position" is too many.
-                    // Better: Create one "Grid Dataset" that contains arrays of float bars for every row.
-                }
+        // Helper to track offsets
+        let clusterOffsets = {}; // { clusterId: { resIdx: val } }
+        let globalOffsets = {};  // { globalId: val }
+        
+        clusterState.forEach(c => clusterOffsets[c.id] = {});
+
+        // A. BACKGROUND BARS
+        // 1. Cluster Backgrounds (0-100, 100-200, 200-300)
+        clusterState.forEach((c, i) => {
+            const base = i * 100; 
+            // Only add data for the first N rows (Cluster resources)
+            let data = clusterLabels.map(() => [base + 2, base + 98]); // GAP of 2%
+            // Pad the rest with null (Global resources don't use cluster background)
+            globalResources.forEach(() => data.push(null));
+            
+            datasets.push({
+                label: `_BG_${c.id}`,
+                data: data,
+                backgroundColor: getThemeColor('--grey-bar'),
+                barPercentage: 0.8, categoryPercentage: 0.9, grouped: false, order: 10,
+                clusterId: c.id
             });
         });
 
-        // Alternative Grid Strategy: 
-        // Create 1 background dataset. 
-        // For each Label (Resource), the data is an ARRAY of floating bars: [[0,10], [10,20]...]
-        // ChartJS support data: [[start, end], [start, end]] for a single category?
-        // Yes, using `skipNull`.
-        
-        let backgroundBars = [];
-        resources.forEach(() => {
-            let rowBars = [];
-            clusterConfigs.forEach(conf => {
-                for(let i=0; i<10; i++) {
-                    let start = conf.base + (i * 10);
-                    let end = start + 10;
-                    rowBars.push([start, end]);
-                }
+        // 2. Global Backgrounds (0-100)
+        let globalBgData = clusterLabels.map(() => null); // Skip cluster rows
+        globalResources.forEach(g => globalBgData.push([0, 100])); // No Gaps needed for single bar, or maybe slight
+        if(globalResources.length > 0) {
+            datasets.push({
+                label: '_BG_GLOBAL',
+                data: globalBgData,
+                backgroundColor: getThemeColor('--grey-bar'),
+                barPercentage: 0.8, categoryPercentage: 0.9, grouped: false, order: 10
             });
-            backgroundBars.push(rowBars);
-        });
-
-        // However, ChartJS standard bar controller expects data to be one value per label.
-        // To draw multiple background boxes per row, we actually need to just use a custom plugin 
-        // OR simply draw the Borders on the 'Unused' space?
-        // Prompt asks for: "10 sections... clear black borders".
-        
-        // Let's create 10 Datasets, each representing a "Column" in the 10-grid? No.
-        // Let's create one dataset that is white with black border, and placed behind.
-        // Actually, we can flatten the backgroundBars into a flattened structure but ChartJS structure is Dataset -> Data[] (one per row).
-        // If Data[0] is [ [0,10], [10,20] ], ChartJS interprets that as "floating bar". 
-        // Chart.js DOES NOT support multiple floating bars for a single category in one dataset natively easily.
-        
-        // WORKAROUND: We will create 30 Datasets for the background grid?
-        // That is heavy but works perfectly for rendering "Grid Lines".
-        // Dataset 1: Represents the 0-10% block for all resources.
-        // Dataset 2: Represents the 10-20% block for all resources.
-        
-        for(let c=0; c<3; c++) {
-            let base = c * 100;
-            for(let i=0; i<10; i++) {
-                datasets.push({
-                    label: 'Grid',
-                    data: resources.map(() => [base + (i*10), base + (i*10) + 10]),
-                    backgroundColor: 'transparent',
-                    borderColor: 'rgba(0,0,0,0.15)',
-                    borderWidth: 1,
-                    // Gap logic: To prevent overlap with main dividers
-                    // We can shrink the bar slightly via barPercentage
-                    barPercentage: 1.0, 
-                    categoryPercentage: 0.9,
-                    grouped: false,
-                    order: 10, // Bottom layer
-                    hoverBorderWidth: 0
-                });
-            }
         }
 
-        // 2. Project Datasets
-        let accumulated = Array(resources.length).fill(0).map(() => ({ 'Cluster 1': 0, 'Cluster 2': 0, 'Cluster 3': 0 }));
-
+        // B. PROJECT BARS (Based on Drag Order in Table - `projects` array order)
         projects.forEach(p => {
-            let dataPoints = [];
+            let data = [];
             
-            resources.forEach((r, rIdx) => {
-                const cap = capacities[p.cluster][r.key];
-                const val = p[r.key];
-                let pct = (val / cap) * 100;
+            // 1. Cluster Data
+            clusterLabels.forEach((l, rIdx) => {
+                const resKey = clusterResKeys[rIdx];
+                const cIdx = clusterState.findIndex(c => c.id === p.clusterId);
+                if(cIdx === -1) { data.push(null); return; }
                 
-                let base = (p.cluster === 'Cluster 2') ? 100 : (p.cluster === 'Cluster 3') ? 200 : 0;
+                const c = clusterState[cIdx];
+                const base = cIdx * 100;
+                const cap = c[resKey];
+                const val = p[resKey];
+                const pct = (val / cap) * 100;
                 
-                let start = base + accumulated[rIdx][p.cluster];
-                let end = start + pct;
+                // Gap Logic: 
+                // Available visual width is 96 (2 to 98).
+                // We map 0-100 data to 2-98 visual.
+                // visual_width = pct * 0.96
+                const visualPct = pct * 0.96;
                 
-                // Cap at 100
-                if(end > base + 100) end = base + 100;
+                // Track offset
+                const currentOff = clusterOffsets[p.clusterId][rIdx] || 0;
+                
+                // Start = base + 2 (gap) + offset
+                const start = base + 2 + currentOff;
+                const end = start + visualPct;
+                
+                // Cap
+                if (end > base + 98) { data.push(null); } // Overflow visual clip
+                else if (pct > 0) { data.push([start, end]); }
+                else { data.push(null); }
+                
+                clusterOffsets[p.clusterId][rIdx] = currentOff + visualPct;
+            });
 
-                // GAP LOGIC: 
-                // "Create gaps between the 0% & 100% vertical lines and the utilisation bars."
-                // We add a tiny offset to Start and remove from End so it doesn't touch the lines
-                // Only if usage > 0
-                if (pct > 0) {
-                     // Add 0.5% visual padding
-                    if(start === base) start += 0.5; 
-                    if(end === base + 100) end -= 0.5;
-                    
-                    dataPoints.push([start, end]);
-                } else {
-                    dataPoints.push(null);
-                }
-
-                accumulated[rIdx][p.cluster] += pct;
+            // 2. Global Data
+            globalResources.forEach((g, gIdx) => {
+                const val = p[g.id] || 0;
+                const cap = g.capacity;
+                const pct = (val / cap) * 100;
+                
+                const currentOff = globalOffsets[g.id] || 0;
+                const start = currentOff;
+                const end = start + pct;
+                
+                if (pct > 0) data.push([start, end]);
+                else data.push(null);
+                
+                globalOffsets[g.id] = currentOff + pct;
             });
 
             datasets.push({
                 label: p.name,
-                data: dataPoints,
+                data: data,
                 backgroundColor: p.color,
-                // Add border to project bars to make them distinct inside the grid
-                borderColor: 'white', 
-                borderWidth: 1, 
-                barPercentage: 0.6, // Thinner than the grid (which is 0.9) to look "inside"
-                categoryPercentage: 0.9,
-                grouped: false,
-                order: 1 // Top layer
+                // Add black border to creating distinct "sections" feeling combined with grid
+                borderColor: 'rgba(0,0,0,0.5)', 
+                borderWidth: {top: 0, bottom: 0, left: 1, right: 1}, 
+                barPercentage: 0.8, categoryPercentage: 0.9, grouped: false, order: 1
             });
         });
 
         if (myChart) myChart.destroy();
-
+        
         myChart = new Chart(ctx, {
             type: 'bar',
-            data: { 
-                labels: resources.map(r => r.label), 
-                datasets: datasets 
-            },
+            data: { labels: yLabels, datasets: datasets },
             options: {
-                indexAxis: 'y',
-                responsive: true,
-                maintainAspectRatio: false,
-                animation: false, // Disable animation for snappy drag-drop
+                indexAxis: 'y', responsive: true, maintainAspectRatio: false,
                 scales: {
-                    x: {
-                        min: 0, max: 300,
-                        stacked: false,
-                        grid: {
-                            color: ctx => (ctx.tick.value === 100 || ctx.tick.value === 200) ? '#333' : 'transparent', // Only draw cluster dividers
-                            lineWidth: 2,
-                            drawBorder: false
-                        },
-                        ticks: {
+                    x: { 
+                        min: 0, max: 300, stacked: false,
+                        grid: { display: false }, // We use custom plugin for grid
+                        ticks: { 
+                            color: getThemeColor('--chart-text'),
+                            callback: v => (v===0)?'0%':(v%100===0)?'|':(v===300)?'100%':(v%100)+'%' 
+                        }
+                    },
+                    x2: { 
+                        position: 'top', min: 0, max: 300, grid: { display: false },
+                        ticks: { 
+                            color: getThemeColor('--chart-text'), font: { weight: 'bold', size: 12 }, 
                             callback: v => {
-                                if(v===0) return '0%';
-                                if(v===100 || v===200) return '|'; 
-                                if(v===300) return '100%';
-                                return ''; // Hide intermediate numbers
+                                if(v===50) return clusterState[0].name;
+                                if(v===150) return clusterState[1].name;
+                                if(v===250) return clusterState[2].name;
+                                return '';
                             }
                         }
                     },
-                    x2: {
-                        position: 'top', min: 0, max: 300,
-                        grid: { display: false },
-                        ticks: {
-                            callback: v => {
-                                if(v===50) return 'CLUSTER 1';
-                                if(v===150) return 'CLUSTER 2';
-                                if(v===250) return 'CLUSTER 3';
-                                return '';
-                            },
-                            font: { weight: 'bold', size: 14 }, color: '#2c3e50'
-                        }
-                    },
                     y: { 
-                        stacked: false,
-                        grid: { display: false } 
+                        stacked: false, 
+                        ticks: { color: getThemeColor('--chart-text'), autoSkip: false } 
                     }
                 },
                 plugins: {
-                    legend: {
-                        labels: { filter: item => item.text !== 'Grid' }
-                    },
+                    legend: { display: false },
                     tooltip: {
-                        filter: item => item.dataset.label !== 'Grid',
                         callbacks: {
                             label: function(ctx) {
-                                const raw = ctx.raw; 
+                                if(ctx.dataset.label.startsWith('_BG_')) return null;
+                                const raw = ctx.raw;
+                                if(!raw) return null;
                                 const width = raw[1] - raw[0];
-                                const p = projects.find(proj => proj.name === ctx.dataset.label);
-                                const key = resources[ctx.dataIndex].key;
-                                const val = p ? p[key] : 0;
-                                return `${ctx.dataset.label}: ${width.toFixed(1)}% (${val})`;
+                                
+                                // Need to calculate real value vs percentage
+                                // This is tricky because we scaled visual width for gaps
+                                // Simpler: Look up value in project
+                                const p = projects.find(pr => pr.name === ctx.dataset.label);
+                                const rIdx = ctx.dataIndex;
+                                
+                                let val = 0;
+                                if(rIdx < clusterLabels.length) {
+                                    val = p[clusterResKeys[rIdx]];
+                                } else {
+                                    const gIdx = rIdx - clusterLabels.length;
+                                    val = p[globalResources[gIdx].id];
+                                }
+                                
+                                return `${ctx.dataset.label}: ${val} units`;
                             }
                         }
                     }
@@ -573,11 +739,6 @@
             }
         });
     }
-
-    // Run
-    init();
-
 </script>
-
 </body>
 </html>
