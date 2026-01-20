@@ -28,26 +28,39 @@
         /* Utilities */
         input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
         input[type=number] { -moz-appearance: textfield; }
-        input[type="color"] { -webkit-appearance: none; border: none; padding: 0; width: 24px; height: 24px; border-radius: 4px; overflow: hidden; cursor: pointer; background: none; }
-        input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; border: none; }
-        input[type="color"]::-webkit-color-swatch { border: none; border-radius: 4px; padding: 0; }
+        
+        /* Custom Color Picker Reset - Removes white border */
+        input[type="color"] { 
+            -webkit-appearance: none; border: none; padding: 0; 
+            width: 100%; height: 100%; 
+            opacity: 0; cursor: pointer; /* Invisible input on top of colored div */
+            position: absolute; top: 0; left: 0;
+        }
 
-        :root { --chart-text: #334155; --bg-grey-bar: #f1f5f9; --sticky-bg: #ffffff; --border-col: #e2e8f0; }
+        :root { --chart-text: #334155; --bg-grey-bar: #e2e8f0; --sticky-bg: #ffffff; --border-col: #e2e8f0; }
         .dark { --chart-text: #cbd5e1; --bg-grey-bar: #334155; --sticky-bg: #1e293b; --border-col: #334155; }
 
         /* Sticky Columns */
-        .sticky-col-1 { position: sticky; left: 0; z-index: 30; background-color: var(--sticky-bg); width: 40px; min-width: 40px; }
-        .sticky-col-2 { position: sticky; left: 40px; z-index: 30; background-color: var(--sticky-bg); border-right: 2px solid var(--border-col); width: 120px; min-width: 120px; }
+        .sticky-col-1 { 
+            position: sticky; left: 0; z-index: 40; 
+            background-color: var(--sticky-bg); 
+            width: 40px; min-width: 40px; max-width: 40px;
+        }
+        .sticky-col-2 { 
+            position: sticky; left: 40px; z-index: 40; 
+            background-color: var(--sticky-bg); 
+            border-right: 2px solid var(--border-col); 
+            width: 120px; min-width: 120px; max-width: 120px;
+        }
 
         /* Error State */
         .input-error { border: 2px solid #ef4444 !important; background-color: #fef2f2 !important; color: #b91c1c !important; }
-        .header-error { background-color: #ef4444 !important; color: white !important; animation: pulse 2s infinite; }
+        .header-error { background-color: #ef4444 !important; color: white !important; }
         .dark .input-error { background-color: #450a0a !important; color: #fecaca !important; }
-        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.8; } }
 
         /* Text Wrapping */
         th, td { white-space: normal !important; word-wrap: break-word !important; vertical-align: top; }
-        .editable-header { min-width: 80px; white-space: normal; word-break: break-word; outline: none; cursor: text; display: block; padding-right: 20px; }
+        .editable-header { min-width: 80px; outline: none; cursor: text; display: block; padding-right: 20px; }
         .autosize-input { width: 100%; white-space: nowrap; overflow: hidden; transition: font-size 0.1s; }
 
         /* Drag Handle */
@@ -93,7 +106,7 @@
                 <div class="bg-slate-50 dark:bg-slate-900/50 p-2 rounded border-l-4 border-blue-500 text-xs sm:text-sm text-slate-600 dark:text-slate-400 mb-3">
                     <span class="inline-block w-3 h-3 bg-slate-200 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 mr-1 align-middle"></span> 
                     <strong>Grey</strong>: Free Space. <strong>Striped Appendage</strong>: Demand Exceeded.<br>
-                    <span class="text-red-500 font-bold">*</span> Drag table rows to reorder.
+                    <span class="text-red-500 font-bold">*</span> Drag table rows to reorder stack.
                 </div>
                 <div class="relative h-[600px] w-full">
                     <canvas id="utilizationChart"></canvas>
@@ -186,7 +199,7 @@
 
         function loadState() {
             try {
-                const stored = localStorage.getItem('serverDashboardData_v19');
+                const stored = localStorage.getItem('serverDashboardData_v20');
                 if (!stored) return false;
                 const data = JSON.parse(stored);
                 if (!data.clusters || !data.projects) return false;
@@ -198,7 +211,7 @@
         }
         function saveState() {
             const data = { clusters: clusterState, projects: projects, labels: resLabels, keys: resKeys, theme: localStorage.getItem('theme') || 'light' };
-            localStorage.setItem('serverDashboardData_v19', JSON.stringify(data));
+            localStorage.setItem('serverDashboardData_v20', JSON.stringify(data));
         }
 
         function toggleTheme() {
@@ -443,16 +456,20 @@
 
                 let innerHTML = `
                     <td class="p-1 sticky-col-2 z-40"><input id="${nameId}" type="text" class="${inputBase} ${nameErrorClass}" value="${p.name}" onchange="updateProj(${idx}, 'name', this.value)" oninput="autoFitInput(this)"></td>
-                    <td class="p-1 text-center"><div class="w-6 h-6 mx-auto rounded overflow-hidden"><input type="color" value="${p.color}" onchange="updateProj(${idx}, 'color', this.value)" class="w-full h-full p-0 border-none cursor-pointer"></div></td>
+                    <td class="p-1 text-center">
+                        <div class="w-6 h-6 mx-auto rounded overflow-hidden relative">
+                            <div class="absolute inset-0" style="background-color:${p.color}"></div>
+                            <input type="color" value="${p.color}" onchange="updateProj(${idx}, 'color', this.value)">
+                        </div>
+                    </td>
                     <td class="p-1"><select class="${inputBase}" onchange="updateProj(${idx}, 'clusterId', this.value)">${opts}</select></td>`;
                 
                 resKeys.forEach((k, rIdx) => {
                     const stats = getClusterUsageStats(p.clusterId, k);
                     const isErr = stats.exceeded > 0 && (parseFloat(p[k]) > 0);
-                    const inputErrClass = isErr ? 'input-error' : '';
+                    // Removed 'input-error' from here as per request (only header and name highlight)
                     const cellId = `proj_${idx}_${k}`;
-                    innerHTML += `<td class="p-1"><input id="${cellId}" type="number" class="${inputBase} ${inputErrClass}" value="${p[k]}" onchange="updateProj(${idx}, '${k}', this.value)" min="0" oninput="autoFitInput(this)"></td>`;
-                    if(isErr) { setTimeout(() => { const el = document.getElementById(cellId); if(el) bindLongPress(el, () => showPopup(getUnifiedWarning(rIdx, p.clusterId))); }, 0); }
+                    innerHTML += `<td class="p-1"><input id="${cellId}" type="number" class="${inputBase}" value="${p[k]}" onchange="updateProj(${idx}, '${k}', this.value)" min="0" oninput="autoFitInput(this)"></td>`;
                 });
                 
                 innerHTML += `<td class="p-1 text-center flex justify-center gap-1">
@@ -505,8 +522,7 @@
                     resKeys.forEach((key, rIndex) => {
                         const stats = getClusterUsageStats(c.id, key);
                         if (stats.exceeded > 0) {
-                            // Find color of last contributing project
-                            let lastColor = '#ef4444'; // default red
+                            let lastColor = '#ef4444';
                             for(let pIdx = projects.length - 1; pIdx >= 0; pIdx--) {
                                 const p = projects[pIdx];
                                 if (p.clusterId === c.id && parseFloat(p[key]) > 0 && !hiddenProjectIndices.has(pIdx)) {
@@ -586,23 +602,25 @@
                     const pct = (p[key] / (parseFloat(clusterState[cIndex][key])||1)) * 100;
                     const gapOffset = 2;
                     let start = base + gapOffset + offsets[rIdx][p.clusterId]; 
-                    let end = start + pct;
                     
-                    // CLAMP AT 100%
-                    if(end > base + 98) { end = base + 98; }
-
-                    if (pct > 0 && start < end) pts.push([start, end]);
-                    else if (pct > 0 && start >= end) pts.push([start, base+98]);
-                    else pts.push(null);
+                    // Logic Update: Bars stack normally, but CLAMP at 100%
+                    // If start is already past 100%, draw nothing in main area
+                    let visualStart = Math.min(start, base + 98);
+                    let visualEnd = Math.min(start + pct, base + 98);
                     
-                    bgColors.push(p.color); // Solid color in main bar
+                    if (pct > 0 && visualStart < visualEnd) {
+                        pts.push([visualStart, visualEnd]);
+                    } else {
+                        pts.push(null);
+                    }
+                    
+                    bgColors.push(p.color);
                     usageMap[p.clusterId][rIdx] += pct; offsets[rIdx][p.clusterId] += pct;
                 });
                 
                 datasets.push({ 
                     label: p.name, data: pts, backgroundColor: bgColors,
                     barPercentage: 0.8, categoryPercentage: 0.9, grouped: false, order: 1, originalIndex: index,
-                    // No overloadInfo needed here, plugin handles overlay
                 });
             });
 
@@ -614,6 +632,9 @@
                 data: { labels: resLabels, datasets: datasets },
                 options: {
                     indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+                    onClick: (e, elements) => {
+                        // Removed bar click handler since stripes are gone from main bar
+                    },
                     scales: {
                         x: { min: 0, max: clusterState.length * 100, stacked: false, grid: { display: false }, ticks: { display: false } },
                         x2: { position: 'top', min: 0, max: clusterState.length * 100, grid: { display: false }, ticks: { color: textColor, font: { weight: 'bold', size: 12 }, callback: v => {
@@ -626,7 +647,8 @@
                         legend: { 
                             display: true, position: 'top', 
                             labels: { 
-                                filter: i => !i.text.startsWith('_BG_'), color: textColor,
+                                filter: i => !i.text.startsWith('_BG_'), 
+                                color: textColor,
                                 generateLabels: (chart) => {
                                     return projects.map((p, i) => ({
                                         text: p.name, fillStyle: p.color, hidden: hiddenProjectIndices.has(i), index: i, textDecoration: hiddenProjectIndices.has(i) ? 'line-through' : ''
@@ -653,7 +675,6 @@
                                     const p = projects[ctx.dataset.originalIndex];
                                     if (!p) return '';
                                     const val = p[resKeys[ctx.dataIndex]] || 0;
-                                    // Calculate Actual % even if bar is clamped
                                     const cIndex = clusterState.findIndex(c => c.id === p.clusterId);
                                     const cap = parseFloat(clusterState[cIndex][resKeys[ctx.dataIndex]]) || 1;
                                     const realPct = (val / cap) * 100;
