@@ -93,10 +93,8 @@
 </head>
 <body class="bg-slate-50 text-slate-800 dark:bg-slate-900 dark:text-slate-100 transition-colors duration-300 min-h-screen p-2 sm:p-4">
 
-    <!-- Global Error Log -->
     <div id="error-log" class="hidden bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert"></div>
 
-    <!-- CUSTOM POPUP -->
     <div id="custom-popup" class="hidden-popup fixed top-6 left-1/2 w-[90%] max-w-md bg-white dark:bg-slate-800 border-l-4 border-red-500 shadow-2xl rounded p-4 text-sm sm:text-base">
         <div class="flex justify-between items-start">
             <div id="popup-content" class="text-slate-800 dark:text-slate-200 whitespace-pre-wrap font-medium"></div>
@@ -166,7 +164,6 @@
     </div>
 
     <script>
-        // --- HANDLERS ---
         window.onerror = function(msg) { 
             if(msg.includes('Script error') || msg.includes('getParsed')) return true; 
             document.getElementById('error-log').classList.remove('hidden'); 
@@ -176,7 +173,6 @@
         
         document.addEventListener('DOMContentLoaded', () => { try { initApp(); } catch (e) { console.error(e); } });
 
-        // --- STATE ---
         let clusterState = [];
         let projects = [];
         let resLabels = [];
@@ -184,7 +180,6 @@
         let myChart = null;
         let hiddenProjectIndices = new Set(); 
 
-        // --- DEFAULTS ---
         const initialClusters = [
             { id: 'c1', name: 'Cluster 1', vcpu: 100, ram: 500, storage_norm: 100, storage_fast: 20, vgpu: 10 },
             { id: 'c2', name: 'Cluster 2', vcpu: 100, ram: 500, storage_norm: 100, storage_fast: 20, vgpu: 10 },
@@ -246,7 +241,7 @@
 
         function loadState() {
             try {
-                const stored = localStorage.getItem('serverDashboardData_v16');
+                const stored = localStorage.getItem('serverDashboardData_v15');
                 if (!stored) return false;
                 const data = JSON.parse(stored);
                 if (!data.clusters || !data.projects) return false;
@@ -265,7 +260,7 @@
                 labels: resLabels, keys: resKeys,
                 theme: localStorage.getItem('theme') || 'light'
             };
-            localStorage.setItem('serverDashboardData_v16', JSON.stringify(data));
+            localStorage.setItem('serverDashboardData_v15', JSON.stringify(data));
         }
 
         function toggleTheme() {
@@ -342,10 +337,13 @@
 
         window.updateClusterName = (id, val) => { clusterState.find(c => c.id === id).name = val; saveState(); renderProjectTable(); updateChart(); };
         
+        // FIXED: Now re-renders Capacity Table to show red highlight instantly
         window.updateClusterCap = (id, k, val) => { 
             clusterState.find(c => c.id === id)[k] = parseFloat(val) || 1; 
             saveState(); 
-            renderCapacityTable(); renderProjectTable(); updateChart(); 
+            renderCapacityTable(); 
+            renderProjectTable(); 
+            updateChart(); 
         };
         
         window.updateLabel = (idx, val) => { resLabels[idx] = val.trim(); saveState(); renderProjectTable(); updateChart(); };
@@ -466,22 +464,10 @@
         }
 
         function getCssVar(name) { return getComputedStyle(document.body).getPropertyValue(name).trim(); }
-        
-        // FIXED: Better Pattern Generation
         function getStripePattern(color) {
             const c = document.createElement('canvas'); const x = c.getContext('2d');
-            c.width=10; c.height=10; 
-            // 1. Fill background with project color (lighter version potentially)
-            x.fillStyle = color; 
-            x.fillRect(0,0,10,10);
-            
-            // 2. Draw WHITE lines on top
-            x.strokeStyle = 'rgba(255,255,255,0.7)'; 
-            x.lineWidth = 3; 
-            x.beginPath(); 
-            x.moveTo(0,10); x.lineTo(10,0); // Diagonal line
-            x.stroke();
-            
+            c.width=10; c.height=10; x.fillStyle=color; x.fillRect(0,0,10,10);
+            x.strokeStyle='rgba(255,255,255,0.7)'; x.lineWidth=2; x.beginPath(); x.moveTo(0,10); x.lineTo(10,0); x.stroke();
             return c;
         }
 
@@ -527,24 +513,13 @@
                     let end = start + pct;
                     let isOverloaded = false;
                     
-                    // FIXED: Strict Clamping to prevent drawing into neighbor
-                    if(end > (base + 100)) { 
-                        end = base + 100; 
-                        isOverloaded = true; 
-                    }
+                    if(end > base + 100) { end = base + 100; isOverloaded = true; }
 
-                    // Ensure we don't draw negative or backwards bars if start already exceeded limits
-                    if(start >= (base + 100)) {
-                        pts.push(null); // Already full, don't draw
-                        // However, we still need to mark it as overloaded to get the stripe/color
-                        bgColors.push(ctx.createPattern(getStripePattern(p.color), 'repeat'));
-                    } else {
-                        if (pct > 0 && start < end) pts.push([start, end]);
-                        else pts.push(null);
-                        
-                        bgColors.push(isOverloaded ? ctx.createPattern(getStripePattern(p.color), 'repeat') : p.color);
-                    }
-
+                    if (pct > 0 && start < end) pts.push([start, end]);
+                    else if (isOverloaded && start < (base + 100)) pts.push([start, base+100]);
+                    else pts.push(null);
+                    
+                    bgColors.push(isOverloaded ? ctx.createPattern(getStripePattern(p.color), 'repeat') : p.color);
                     usageMap[p.clusterId][rIdx] += pct; offsets[rIdx][p.clusterId] += pct;
                 });
                 
@@ -553,8 +528,7 @@
                     barPercentage: 0.9, categoryPercentage: 0.9, grouped: false, order: 1,
                     originalIndex: index, 
                     overloadInfo: pts.map((pt, i) => {
-                        // Even if pt is null, if it was meant to be drawn but failed due to space, it's an overload
-                        // But simpler: Check logic again
+                        if(!pt) return null;
                         const stats = getClusterUsageStats(p.clusterId, resKeys[i]);
                         return stats.exceeded > 0 ? { rIdx: i, cId: p.clusterId } : null;
                     })
