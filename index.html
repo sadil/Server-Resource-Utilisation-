@@ -28,7 +28,6 @@
         /* Utilities */
         input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
         input[type=number] { -moz-appearance: textfield; }
-        
         input[type="color"] { 
             -webkit-appearance: none; border: none; padding: 0; 
             width: 24px; height: 24px; 
@@ -247,7 +246,7 @@
 
         function loadState() {
             try {
-                const stored = localStorage.getItem('serverDashboardData_v17');
+                const stored = localStorage.getItem('serverDashboardData_v16');
                 if (!stored) return false;
                 const data = JSON.parse(stored);
                 if (!data.clusters || !data.projects) return false;
@@ -266,7 +265,7 @@
                 labels: resLabels, keys: resKeys,
                 theme: localStorage.getItem('theme') || 'light'
             };
-            localStorage.setItem('serverDashboardData_v17', JSON.stringify(data));
+            localStorage.setItem('serverDashboardData_v16', JSON.stringify(data));
         }
 
         function toggleTheme() {
@@ -468,17 +467,21 @@
 
         function getCssVar(name) { return getComputedStyle(document.body).getPropertyValue(name).trim(); }
         
+        // FIXED: Better Pattern Generation
         function getStripePattern(color) {
             const c = document.createElement('canvas'); const x = c.getContext('2d');
             c.width=10; c.height=10; 
-            // Corrected Pattern: Colored background, white lines for visibility
+            // 1. Fill background with project color (lighter version potentially)
             x.fillStyle = color; 
             x.fillRect(0,0,10,10);
+            
+            // 2. Draw WHITE lines on top
             x.strokeStyle = 'rgba(255,255,255,0.7)'; 
-            x.lineWidth = 2; 
+            x.lineWidth = 3; 
             x.beginPath(); 
             x.moveTo(0,10); x.lineTo(10,0); // Diagonal line
             x.stroke();
+            
             return c;
         }
 
@@ -524,22 +527,22 @@
                     let end = start + pct;
                     let isOverloaded = false;
                     
-                    // Fixed Logic: If bar goes past 100%, CLAMP it but mark as overloaded
-                    if(end > base + 100) { 
+                    // FIXED: Strict Clamping to prevent drawing into neighbor
+                    if(end > (base + 100)) { 
                         end = base + 100; 
                         isOverloaded = true; 
                     }
 
-                    if (pct > 0 && start < end) pts.push([start, end]);
-                    else if (isOverloaded && start < (base + 100)) pts.push([start, base+100]); // Show clipped bar
-                    else pts.push(null);
-                    
-                    // Apply pattern ONLY if overloaded
-                    if(isOverloaded) {
-                        const pattern = ctx.createPattern(getStripePattern(p.color), 'repeat');
-                        bgColors.push(pattern);
+                    // Ensure we don't draw negative or backwards bars if start already exceeded limits
+                    if(start >= (base + 100)) {
+                        pts.push(null); // Already full, don't draw
+                        // However, we still need to mark it as overloaded to get the stripe/color
+                        bgColors.push(ctx.createPattern(getStripePattern(p.color), 'repeat'));
                     } else {
-                        bgColors.push(p.color);
+                        if (pct > 0 && start < end) pts.push([start, end]);
+                        else pts.push(null);
+                        
+                        bgColors.push(isOverloaded ? ctx.createPattern(getStripePattern(p.color), 'repeat') : p.color);
                     }
 
                     usageMap[p.clusterId][rIdx] += pct; offsets[rIdx][p.clusterId] += pct;
@@ -550,7 +553,8 @@
                     barPercentage: 0.9, categoryPercentage: 0.9, grouped: false, order: 1,
                     originalIndex: index, 
                     overloadInfo: pts.map((pt, i) => {
-                        if(!pt) return null;
+                        // Even if pt is null, if it was meant to be drawn but failed due to space, it's an overload
+                        // But simpler: Check logic again
                         const stats = getClusterUsageStats(p.clusterId, resKeys[i]);
                         return stats.exceeded > 0 ? { rIdx: i, cId: p.clusterId } : null;
                     })
@@ -598,4 +602,32 @@
                             onClick: (e, legendItem, legend) => {
                                 const idx = legendItem.index;
                                 if(hiddenProjectIndices.has(idx)) hiddenProjectIndices.delete(idx);
-                                else hiddenPr
+                                else hiddenProjectIndices.add(idx);
+                                setTimeout(() => updateChart(), 0);
+                            } 
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(ctx) {
+                                    if (ctx.dataset.label.startsWith('_BG_')) {
+                                        const cId = ctx.dataset.clusterId; const rIdx = ctx.dataIndex; 
+                                        if(!usageMap[cId]) return '';
+                                        const total = clusterState.find(c => c.id === cId)[resKeys[rIdx]];
+                                        const used = usageMap[cId][rIdx]; 
+                                        const freePct = Math.max(0, 100 - used); const freeUnits = (freePct/100)*total;
+                                        return [`Available: ${freePct.toFixed(1)}%`, `${Math.floor(freeUnits)} / ${total}`];
+                                    }
+                                    const p = projects[ctx.dataset.originalIndex];
+                                    if (!p) return '';
+                                    const val = p[resKeys[ctx.dataIndex]] || 0;
+                                    return `${ctx.dataset.label}: ${(ctx.raw[1]-ctx.raw[0]).toFixed(1)}% (${val})`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+    </script>
+</body>
+</html>
