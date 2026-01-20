@@ -598,32 +598,4 @@
                             onClick: (e, legendItem, legend) => {
                                 const idx = legendItem.index;
                                 if(hiddenProjectIndices.has(idx)) hiddenProjectIndices.delete(idx);
-                                else hiddenProjectIndices.add(idx);
-                                setTimeout(() => updateChart(), 0);
-                            } 
-                        },
-                        tooltip: {
-                            callbacks: {
-                                label: function(ctx) {
-                                    if (ctx.dataset.label.startsWith('_BG_')) {
-                                        const cId = ctx.dataset.clusterId; const rIdx = ctx.dataIndex; 
-                                        if(!usageMap[cId]) return '';
-                                        const total = clusterState.find(c => c.id === cId)[resKeys[rIdx]];
-                                        const used = usageMap[cId][rIdx]; 
-                                        const freePct = Math.max(0, 100 - used); const freeUnits = (freePct/100)*total;
-                                        return [`Available: ${freePct.toFixed(1)}%`, `${Math.floor(freeUnits)} / ${total}`];
-                                    }
-                                    const p = projects[ctx.dataset.originalIndex];
-                                    if (!p) return '';
-                                    const val = p[resKeys[ctx.dataIndex]] || 0;
-                                    return `${ctx.dataset.label}: ${(ctx.raw[1]-ctx.raw[0]).toFixed(1)}% (${val})`;
-                                }
-                            }
-                        }
-                    }
-                }
-            });
-        }
-    </script>
-</body>
-</html>
+                                else hiddenPr
