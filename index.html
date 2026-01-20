@@ -3,7 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-    <meta name="viewport" content="width=device-width, initial-scale=0.85, maximum-scale=5.0, user-scalable=yes">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <meta name="viewport" content="width=device-width, initial-scale=0.75, maximum-scale=5.0, user-scalable=yes">
     <title>Server Utilisation</title>
     
     <link rel="manifest" href="manifest.json">
@@ -21,58 +23,52 @@
 
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js" crossorigin="anonymous"></script>
-    <!-- SortableJS for Drag and Drop -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
 
     <style>
         /* Utilities */
         input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
         input[type=number] { -moz-appearance: textfield; }
-        input[type="color"] { 
-            -webkit-appearance: none; border: none; padding: 0; 
-            width: 24px; height: 24px; 
-            border-radius: 4px; overflow: hidden; cursor: pointer; 
-            background: none;
-        }
+        input[type="color"] { -webkit-appearance: none; border: none; padding: 0; width: 24px; height: 24px; border-radius: 4px; overflow: hidden; cursor: pointer; background: none; }
         
-        :root { --chart-text: #334155; --bg-grey-bar: #e2e8f0; --sticky-bg: #ffffff; }
-        .dark { --chart-text: #cbd5e1; --bg-grey-bar: #334155; --sticky-bg: #1e293b; }
+        :root { --chart-text: #334155; --bg-grey-bar: #e2e8f0; --sticky-bg: #ffffff; --border-color: #e2e8f0; }
+        .dark { --chart-text: #cbd5e1; --bg-grey-bar: #334155; --sticky-bg: #1e293b; --border-color: #334155; }
 
         /* Sticky Columns */
         .sticky-col-1 { position: sticky; left: 0; z-index: 30; background-color: var(--sticky-bg); }
-        .sticky-col-2 { position: sticky; left: 45px; z-index: 30; background-color: var(--sticky-bg); border-right: 2px solid #e2e8f0; }
-        .dark .sticky-col-2 { border-right-color: #334155; }
-
-        /* Error States */
-        .input-error { border: 2px solid #ef4444 !important; background-color: #fef2f2 !important; color: #b91c1c !important; }
-        .dark .input-error { background-color: #450a0a !important; color: #fecaca !important; }
-        .header-error { background-color: #ef4444 !important; color: white !important; }
-
-        /* Draggable Cursor */
-        .draggable-row { cursor: grab; }
-        .draggable-row:active { cursor: grabbing; background-color: rgba(59, 130, 246, 0.1); }
-
-        /* Text Input Auto-Size */
-        .autosize-input { width: 100%; white-space: nowrap; overflow: hidden; transition: font-size 0.1s; }
+        .sticky-col-2 { position: sticky; left: 40px; z-index: 30; background-color: var(--sticky-bg); border-right: 2px solid var(--border-color); }
         
-        .editable-header { min-width: 80px; outline: none; cursor: text; display: block; padding-right: 20px; }
-        .editable-header:focus { background-color: rgba(255,255,255,0.1); border-radius: 4px; }
+        /* Error State */
+        .input-error { border: 2px solid #ef4444 !important; background-color: #fef2f2 !important; color: #b91c1c !important; }
+        .header-error { background-color: #ef4444 !important; color: white !important; animation: pulse 2s infinite; }
+        .dark .input-error { background-color: #450a0a !important; color: #fecaca !important; }
 
-        /* Popup */
-        #custom-popup { z-index: 9999; transition: opacity 0.2s, transform 0.2s; }
-        #custom-popup.hidden-popup { opacity: 0; pointer-events: none; transform: translate(-50%, -20px); }
-        #custom-popup.visible-popup { opacity: 1; pointer-events: auto; transform: translate(-50%, 0); }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.8; } }
+
+        /* Text Wrapping */
+        th, td { white-space: normal !important; word-wrap: break-word !important; vertical-align: top; }
+        .editable-header { min-width: 80px; white-space: normal; word-break: break-word; outline: none; cursor: text; display: block; padding-right: 20px; }
+        .autosize-input { width: 100%; white-space: nowrap; overflow: hidden; transition: font-size 0.1s; }
+
+        /* Drag Handle */
+        .drag-handle { cursor: grab; color: #94a3b8; font-size: 1.2rem; line-height: 1; }
+        .drag-handle:active { cursor: grabbing; color: #3b82f6; }
+        .dragging { opacity: 0.5; background: #f1f5f9; }
+
+        /* Chart Popups */
+        #custom-popup { z-index: 9999; transition: opacity 0.3s ease-in-out, transform 0.3s ease-in-out; }
+        .hidden-popup { opacity: 0; pointer-events: none; transform: translate(-50%, -20px); }
+        .visible-popup { opacity: 1; pointer-events: auto; transform: translate(-50%, 0); }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-800 dark:bg-slate-900 dark:text-slate-100 transition-colors duration-300 min-h-screen p-2 sm:p-4">
 
-    <div id="error-log" class="hidden bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4"></div>
+    <div id="error-log" class="hidden bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert"></div>
 
-    <!-- Popup -->
-    <div id="custom-popup" class="hidden-popup fixed top-6 left-1/2 w-[90%] max-w-md bg-white dark:bg-slate-800 border-l-4 border-red-500 shadow-2xl rounded p-4 text-sm z-50">
+    <!-- POPUP -->
+    <div id="custom-popup" class="hidden-popup fixed top-6 left-1/2 w-[90%] max-w-md bg-white dark:bg-slate-800 border-l-4 border-red-500 shadow-2xl rounded p-4 text-sm sm:text-base">
         <div class="flex justify-between items-start">
             <div id="popup-content" class="text-slate-800 dark:text-slate-200 whitespace-pre-wrap font-medium"></div>
-            <button id="btn-close-popup" class="text-slate-400 hover:text-slate-600 ml-2">✕</button>
+            <button id="btn-close-popup" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 ml-2">✕</button>
         </div>
     </div>
 
@@ -83,8 +79,8 @@
             <div class="flex items-center gap-3">
                 <h1 class="text-lg sm:text-xl font-bold text-blue-600 dark:text-blue-400 whitespace-nowrap">Server Utilisation</h1>
                 <div class="flex gap-2">
-                    <button id="btnUpdate" class="bg-green-600 hover:bg-green-700 text-white text-xs font-bold py-1.5 px-3 rounded shadow">↻ Update</button>
-                    <button id="btnReset" class="bg-red-500 hover:bg-red-600 text-white text-xs font-bold py-1.5 px-3 rounded shadow">Reset</button>
+                    <button id="btnUpdate" class="bg-green-600 hover:bg-green-700 text-white text-xs sm:text-sm font-semibold py-1.5 px-3 rounded shadow transition">↻ Update App</button>
+                    <button id="btnReset" class="bg-red-500 hover:bg-red-600 text-white text-xs sm:text-sm font-semibold py-1.5 px-3 rounded shadow transition">Reset</button>
                 </div>
             </div>
             <button id="btnTheme" class="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-600 transition"><span class="text-xl">🌗</span></button>
@@ -95,13 +91,11 @@
             
             <!-- CHART -->
             <div class="bg-white dark:bg-slate-800 p-3 sm:p-4 rounded-lg shadow border border-slate-200 dark:border-slate-700">
-                <div class="flex justify-between items-center mb-2">
-                    <h2 class="text-base font-semibold">Utilization</h2>
-                    <span class="text-xs text-slate-500 dark:text-slate-400">Drag rows in table below to reorder</span>
-                </div>
-                <div class="bg-slate-50 dark:bg-slate-900/50 p-2 rounded border-l-4 border-blue-500 text-xs text-slate-600 dark:text-slate-400 mb-3">
-                    <span class="inline-block w-3 h-3 bg-slate-300 mr-1 align-middle"></span> <strong>10 Sections</strong> = 10% each. 
-                    <strong>Gap</strong> = Padding. <strong>Striped</strong> = Overloaded.
+                <h2 class="text-base font-semibold mb-2">Utilization</h2>
+                <div class="bg-slate-50 dark:bg-slate-900/50 p-2 rounded border-l-4 border-blue-500 text-xs sm:text-sm text-slate-600 dark:text-slate-400 mb-3">
+                    <span class="inline-block w-3 h-3 bg-slate-200 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 mr-1 align-middle"></span> 
+                    <strong>Grey</strong>: Free Space. <strong>Striped</strong>: Limit Exceeded.<br>
+                    <strong>Bars:</strong> Split into 10% sections. Drag projects in table to reorder stack.
                 </div>
                 <div class="relative h-[500px] w-full">
                     <canvas id="utilizationChart"></canvas>
@@ -110,11 +104,11 @@
 
             <!-- CONFIG TABLE -->
             <div class="bg-white dark:bg-slate-800 p-3 sm:p-4 rounded-lg shadow border border-slate-200 dark:border-slate-700">
-                <div class="flex justify-between items-center mb-2">
+                <div class="flex flex-wrap justify-between items-center mb-2 gap-2">
                     <h2 class="text-base font-semibold">1. Configuration</h2>
                     <div class="flex gap-2">
-                         <button onclick="addNewCluster()" class="bg-purple-600 text-white text-xs font-bold py-1 px-2 rounded hover:bg-purple-700 shadow">+ Cluster</button>
-                         <button onclick="addNewResource()" class="bg-green-600 text-white text-xs font-bold py-1 px-2 rounded hover:bg-green-700 shadow">+ Resource</button>
+                        <button onclick="addGlobalCluster()" class="bg-indigo-600 text-white text-xs font-bold py-1 px-2 rounded hover:bg-indigo-700 shadow" title="Add Global/Shared Cluster">+ Global Cluster</button>
+                        <button onclick="addNewResource()" class="bg-green-600 text-white text-xs font-bold py-1 px-2 rounded hover:bg-green-700 shadow" title="Add Resource Column">+ Column</button>
                     </div>
                 </div>
                 <div class="overflow-x-auto relative">
@@ -142,24 +136,23 @@
     </div>
 
     <script>
-        // Error Handling
         window.onerror = function(msg) { 
-            if(msg.includes('Script error')) return true; 
-            const log = document.getElementById('error-log');
-            log.classList.remove('hidden'); log.innerText = `Error: ${msg}`;
+            if(msg.includes('Script error') || msg.includes('getParsed')) return true; 
+            document.getElementById('error-log').classList.remove('hidden'); 
+            document.getElementById('error-log').innerHTML = `Error: ${msg}`; 
             return false; 
         };
         
-        document.addEventListener('DOMContentLoaded', initApp);
+        document.addEventListener('DOMContentLoaded', () => { try { initApp(); } catch (e) { console.error(e); } });
 
-        // State
         let clusterState = [];
         let projects = [];
         let resLabels = [];
         let resKeys = [];
         let myChart = null;
+        let hiddenProjectIndices = new Set();
+        let dragSrcEl = null;
 
-        // Initial Data
         const initialClusters = [
             { id: 'c1', name: 'Cluster 1', vcpu: 100, ram: 500, storage_norm: 100, storage_fast: 20, vgpu: 10 },
             { id: 'c2', name: 'Cluster 2', vcpu: 100, ram: 500, storage_norm: 100, storage_fast: 20, vgpu: 10 },
@@ -175,43 +168,39 @@
         const palette = ['#E74C3C', '#3498DB', '#F1C40F', '#9B59B6', '#2ECC71', '#E67E22', '#1ABC9C', '#34495E'];
 
         function initApp() {
-            if (typeof Chart === 'undefined') return;
+            if (typeof Chart === 'undefined') return alert("Chart.js failed to load");
             
-            document.getElementById('btnUpdate').addEventListener('click', () => window.location.reload(true));
+            document.getElementById('btnUpdate').addEventListener('click', forceUpdateApp);
             document.getElementById('btnReset').addEventListener('click', resetDefaults);
             document.getElementById('btnTheme').addEventListener('click', toggleTheme);
             document.getElementById('btnAddProject').addEventListener('click', addProject);
             document.getElementById('btn-close-popup').addEventListener('click', hidePopup);
-
-            // Drag and Drop Initialization
-            new Sortable(document.getElementById('projectRows'), {
-                animation: 150,
-                handle: '.sticky-col-1', // Drag using the color/first column
-                onEnd: function (evt) {
-                    const item = projects.splice(evt.oldIndex, 1)[0];
-                    projects.splice(evt.newIndex, 0, item);
-                    saveState();
-                    updateChart(); // Redraw chart to reflect new stack order
-                }
-            });
+            document.addEventListener('click', (e) => {
+                const popup = document.getElementById('custom-popup');
+                if (popup.classList.contains('visible-popup') && !popup.contains(e.target)) hidePopup();
+            }, true);
 
             if (!loadState()) resetDataToDefaults(false);
             applyThemeClass();
             refreshUI();
-            
-            if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(()=>{});
+            if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js?v=' + Date.now()).then(reg => reg.update()).catch(console.error);
         }
 
-        // --- Logic ---
-        function resetDefaults() { 
-            if(confirm("Reset data?")) resetDataToDefaults(true); 
+        async function forceUpdateApp() {
+            if(!confirm("Update App?")) return;
+            if ('serviceWorker' in navigator) { const regs = await navigator.serviceWorker.getRegistrations(); for (let reg of regs) await reg.unregister(); }
+            if ('caches' in window) { const keys = await caches.keys(); await Promise.all(keys.map(k => caches.delete(k))); }
+            window.location.reload(true);
         }
+
+        function resetDefaults() { if(confirm("Reset to defaults?")) resetDataToDefaults(true); }
 
         function resetDataToDefaults(refresh) {
             clusterState = JSON.parse(JSON.stringify(initialClusters));
             projects = JSON.parse(JSON.stringify(initialProjects));
             resLabels = [...initialLabels];
             resKeys = [...initialKeys];
+            hiddenProjectIndices.clear();
             saveState();
             if(refresh) refreshUI();
         }
@@ -232,11 +221,7 @@
         }
 
         function saveState() {
-            const data = {
-                clusters: clusterState, projects: projects, 
-                labels: resLabels, keys: resKeys,
-                theme: localStorage.getItem('theme') || 'light'
-            };
+            const data = { clusters: clusterState, projects: projects, labels: resLabels, keys: resKeys, theme: localStorage.getItem('theme') || 'light' };
             localStorage.setItem('serverDashboardData_v16', JSON.stringify(data));
         }
 
@@ -245,7 +230,6 @@
             localStorage.setItem('theme', current);
             applyThemeClass(); saveState(); updateChart();
         }
-
         function applyThemeClass() {
             if (localStorage.getItem('theme') === 'dark') document.documentElement.classList.add('dark');
             else document.documentElement.classList.remove('dark');
@@ -255,42 +239,64 @@
             renderCapacityTable(); renderProjectTable(); updateChart();
         }
 
-        // --- Data Manipulation ---
+        function showPopup(msg) {
+            const popup = document.getElementById('custom-popup');
+            document.getElementById('popup-content').innerText = msg;
+            popup.classList.remove('hidden-popup'); popup.classList.add('visible-popup');
+            if(window.popupTimeout) clearTimeout(window.popupTimeout);
+            window.popupTimeout = setTimeout(hidePopup, 5000);
+        }
+        function hidePopup() { document.getElementById('custom-popup').classList.remove('visible-popup'); document.getElementById('custom-popup').classList.add('hidden-popup'); }
+
+        function getUnifiedWarning(resIndex, clusterId) {
+            const label = resLabels[resIndex] || 'Unknown';
+            const key = resKeys[resIndex];
+            const stats = getClusterUsageStats(clusterId, key);
+            return `⚠️ LIMIT EXCEEDED\n\nResource: ${label}\nTotal Used: ${stats.used}\nCapacity: ${stats.capacity}\nExceeded By: ${stats.exceeded}`;
+        }
+
+        function bindLongPress(element, callback) {
+            let timer;
+            const start = (e) => { timer = setTimeout(() => { timer = null; callback(); }, 600); };
+            const end = (e) => { if (timer) clearTimeout(timer); };
+            element.addEventListener('contextmenu', (e) => { if(!timer) e.preventDefault(); });
+            element.addEventListener('mousedown', start); element.addEventListener('touchstart', start, {passive: true});
+            element.addEventListener('mouseup', end); element.addEventListener('touchend', end);
+        }
+
+        function getClusterUsageStats(clusterId, resourceKey) {
+            let totalUsed = 0;
+            projects.forEach(p => { if(p.clusterId === clusterId) totalUsed += (parseFloat(p[resourceKey]) || 0); });
+            const cluster = clusterState.find(c => c.id === clusterId);
+            const capacity = cluster ? (parseFloat(cluster[resourceKey]) || 1) : 1;
+            return { used: totalUsed, capacity: capacity, exceeded: Math.max(0, totalUsed - capacity) };
+        }
+
         window.addNewResource = function() {
-            const name = prompt("Name for new Resource:");
+            const name = prompt("Enter Name for new Resource:");
             if(!name) return;
             const key = name.toLowerCase().replace(/[^a-z0-9]/g, '_');
+            if(resKeys.includes(key)) return alert("Resource already exists");
             resKeys.push(key); resLabels.push(name);
             clusterState.forEach(c => c[key] = 0); projects.forEach(p => p[key] = 0);
             saveState(); refreshUI();
         }
 
-        window.addNewCluster = function() {
-            const id = 'c' + (Date.now());
-            clusterState.push({ id: id, name: 'New Cluster', ...Object.fromEntries(resKeys.map(k=>[k, 100])) });
+        window.addGlobalCluster = function() {
+            const id = 'g_' + Date.now();
+            clusterState.push({ id: id, name: 'Global Pool', ...Object.fromEntries(resKeys.map(k => [k, 0])) });
             saveState(); refreshUI();
         }
 
-        window.removeResource = (idx) => {
-            if(confirm(`Remove '${resLabels[idx]}'?`)) {
-                resKeys.splice(idx, 1); resLabels.splice(idx, 1);
-                saveState(); refreshUI();
-            }
-        };
-
-        window.removeCluster = (idx) => {
-            if(confirm("Remove this cluster?")) {
-                const cId = clusterState[idx].id;
-                clusterState.splice(idx, 1);
-                // Reset projects assigned to this cluster to the first available or null
-                projects.forEach(p => { if(p.clusterId === cId) p.clusterId = clusterState[0]?.id || ''; });
-                saveState(); refreshUI();
-            }
+        window.removeResource = function(idx) {
+            if(!confirm(`Remove resource column '${resLabels[idx]}'?`)) return;
+            resKeys.splice(idx, 1); resLabels.splice(idx, 1);
+            saveState(); refreshUI();
         }
 
         window.updateClusterName = (id, val) => { clusterState.find(c => c.id === id).name = val; saveState(); renderProjectTable(); updateChart(); };
-        window.updateClusterCap = (id, k, val) => { clusterState.find(c => c.id === id)[k] = parseFloat(val) || 1; saveState(); refreshUI(); }; // Full refresh to update red headers
-        window.updateLabel = (idx, val) => { resLabels[idx] = val; saveState(); renderProjectTable(); updateChart(); };
+        window.updateClusterCap = (id, k, val) => { clusterState.find(c => c.id === id)[k] = parseFloat(val) || 1; saveState(); renderCapacityTable(); renderProjectTable(); updateChart(); };
+        window.updateLabel = (idx, val) => { resLabels[idx] = val.trim(); saveState(); renderProjectTable(); updateChart(); };
         
         window.updateProj = (idx, field, val) => {
             if(field !== 'name' && field !== 'clusterId' && field !== 'color') val = parseFloat(val) || 0;
@@ -300,118 +306,172 @@
 
         window.removeProj = (idx) => { if(confirm('Delete?')) { projects.splice(idx, 1); saveState(); refreshUI(); } };
         window.duplicateProj = (idx) => {
-            const copy = { ...projects[idx], id: Date.now(), name: projects[idx].name + " (Copy)" };
+            const copy = { ...projects[idx], id: Date.now() + Math.random(), name: projects[idx].name + " (Copy)" };
             projects.splice(idx + 1, 0, copy); saveState(); refreshUI();
         };
         
         function addProject() {
-            projects.push({ id: Date.now(), name: 'New App', clusterId: clusterState[0]?.id, color: palette[projects.length % palette.length] });
+            projects.push({ id: Date.now(), name: 'New App', clusterId: 'c1', color: palette[projects.length % palette.length] });
             resKeys.forEach(k => projects[projects.length-1][k] = 0);
             saveState(); refreshUI();
         }
 
-        // --- Calculations ---
-        function getClusterUsageStats(clusterId, resourceKey) {
-            let totalUsed = 0;
-            projects.forEach(p => { if(p.clusterId === clusterId) totalUsed += (parseFloat(p[resourceKey]) || 0); });
-            const cluster = clusterState.find(c => c.id === clusterId);
-            const capacity = cluster ? (parseFloat(cluster[resourceKey]) || 1) : 1;
-            return { used: totalUsed, capacity: capacity, exceeded: Math.max(0, totalUsed - capacity) };
+        function autoFitInput(input) {
+            input.style.fontSize = '16px'; 
+            if (input.scrollWidth > input.clientWidth) {
+                const ratio = input.clientWidth / input.scrollWidth;
+                const newSize = Math.max(10, Math.floor(16 * ratio)); 
+                input.style.fontSize = newSize + 'px';
+            }
         }
 
-        // --- Renderers ---
-        const inputBase = "autosize-input bg-slate-50 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded px-1 py-1 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-blue-500 text-xs";
+        // --- DRAG AND DROP ---
+        function handleDragStart(e) {
+            this.style.opacity = '0.4';
+            dragSrcEl = this;
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/html', this.innerHTML);
+        }
+        function handleDragOver(e) { if (e.preventDefault) e.preventDefault(); e.dataTransfer.dropEffect = 'move'; return false; }
+        function handleDragEnter(e) { this.classList.add('bg-slate-100', 'dark:bg-slate-700'); }
+        function handleDragLeave(e) { this.classList.remove('bg-slate-100', 'dark:bg-slate-700'); }
+        function handleDrop(e) {
+            if (e.stopPropagation) e.stopPropagation();
+            if (dragSrcEl !== this) {
+                const srcIdx = parseInt(dragSrcEl.getAttribute('data-index'));
+                const targetIdx = parseInt(this.getAttribute('data-index'));
+                // Swap in array
+                const item = projects.splice(srcIdx, 1)[0];
+                projects.splice(targetIdx, 0, item);
+                saveState(); refreshUI();
+            }
+            return false;
+        }
+        function handleDragEnd(e) {
+            this.style.opacity = '1';
+            document.querySelectorAll('#projectRows tr').forEach(row => row.classList.remove('bg-slate-100', 'dark:bg-slate-700'));
+        }
+
+        const inputBase = "autosize-input bg-slate-50 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded px-1 py-1 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-blue-500 focus:outline-none";
+        const headerInput = "editable-header font-bold text-center text-slate-700 dark:text-slate-200";
 
         function renderCapacityTable() {
             const table = document.getElementById('capacityTable');
-            let thead = `<tr><th class="p-2 min-w-[90px] sticky-col-1">Cluster</th>`;
-            resLabels.forEach((l, i) => {
-                thead += `<th class="p-2 min-w-[100px] relative group">
-                    <div contenteditable="true" class="editable-header font-bold text-center" onblur="updateLabel(${i}, this.innerText)">${l}</div>
-                    <button onclick="removeResource(${i})" class="hidden group-hover:block absolute top-0 right-0 bg-red-500 text-white rounded-full w-4 h-4 text-[10px] leading-3">×</button>
+            let theadHtml = `<tr><th class="p-2 min-w-[90px] sticky-col-1">Cluster Name</th>`;
+            resLabels.forEach((label, idx) => {
+                theadHtml += `<th class="p-2 min-w-[100px] relative">
+                    <div contenteditable="true" class="${headerInput}" onblur="updateLabel(${idx}, this.innerText)">${label}</div>
+                    <button onclick="removeResource(${idx})" class="absolute top-1 right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs shadow hover:bg-red-600 z-10 font-bold">×</button>
                 </th>`;
             });
-            thead += `</tr>`;
-            table.querySelector('thead').innerHTML = thead;
+            theadHtml += `</tr>`;
+            table.querySelector('thead').innerHTML = theadHtml;
 
-            let tbody = '';
-            clusterState.forEach((c, idx) => {
-                let row = `<td class="p-1 sticky-col-1 relative group">
-                    <input type="text" class="${inputBase} font-bold" value="${c.name}" onchange="updateClusterName('${c.id}', this.value)">
-                    <button onclick="removeCluster(${idx})" class="hidden group-hover:block absolute top-1 right-1 text-red-500 font-bold px-1">×</button>
-                </td>`;
-                resKeys.forEach((k) => {
+            let tbodyHtml = '';
+            clusterState.forEach(c => {
+                let row = `<td class="p-1 sticky-col-1"><input type="text" class="${inputBase} font-bold" value="${c.name}" onchange="updateClusterName('${c.id}', this.value)" oninput="autoFitInput(this)"></td>`;
+                resKeys.forEach((k, rIdx) => {
                     const stats = getClusterUsageStats(c.id, k);
-                    const errClass = stats.exceeded > 0 ? 'input-error' : '';
-                    row += `<td class="p-1"><input type="number" class="${inputBase} ${errClass}" value="${c[k]}" onchange="updateClusterCap('${c.id}', '${k}', this.value)" min="1"></td>`;
+                    const isErr = stats.exceeded > 0;
+                    const errClass = isErr ? 'input-error' : '';
+                    const idUnique = `cfg_${c.id}_${k}`;
+                    row += `<td class="p-1"><input id="${idUnique}" type="number" class="${inputBase} ${errClass}" value="${c[k]}" onchange="updateClusterCap('${c.id}', '${k}', this.value)" min="1" oninput="autoFitInput(this)"></td>`;
+                    if(isErr) { setTimeout(() => { const el = document.getElementById(idUnique); if(el) bindLongPress(el, () => showPopup(getUnifiedWarning(rIdx, c.id))); }, 0); }
                 });
-                tbody += `<tr>${row}</tr>`;
+                tbodyHtml += `<tr>${row}</tr>`;
             });
-            table.querySelector('tbody').innerHTML = tbody;
+            table.querySelector('tbody').innerHTML = tbodyHtml;
+            setTimeout(() => document.querySelectorAll('.autosize-input').forEach(autoFitInput), 10);
         }
 
         function renderProjectTable() {
             const table = document.getElementById('projectsTable');
-            
-            // Calculate which headers (Resources) are overloaded in ANY cluster
-            const overloadedIndices = new Set();
-            resKeys.forEach((k, rIdx) => {
-                const anyOverload = clusterState.some(c => getClusterUsageStats(c.id, k).exceeded > 0);
-                if(anyOverload) overloadedIndices.add(rIdx);
+            let colsInTrouble = new Set(); // Track which columns have errors
+
+            // 1. First pass to find errors
+            projects.forEach(p => {
+                resKeys.forEach((k, rIdx) => {
+                    const stats = getClusterUsageStats(p.clusterId, k);
+                    if (stats.exceeded > 0 && parseFloat(p[k]) > 0) {
+                        colsInTrouble.add(rIdx);
+                    }
+                });
             });
 
-            let thead = `<tr>
-                <th class="p-2 w-[30px] sticky-col-1 z-30">#</th>
-                <th class="p-2 min-w-[100px] sticky-col-2 z-30">Name</th>
+            // 2. Build Header
+            let theadHtml = `<tr>
+                <th class="p-2 w-[40px] sticky-col-1 z-30">:::</th>
+                <th class="p-2 w-[40px] sticky-col-2 z-30">Col</th>
+                <th class="p-2 min-w-[100px]">Name</th>
                 <th class="p-2 min-w-[120px]">Assigned</th>`;
-            resLabels.forEach((l, i) => {
-                // Header Red if Resource is Overloaded
-                const headerClass = overloadedIndices.has(i) ? 'header-error' : '';
-                thead += `<th class="p-2 min-w-[80px] ${headerClass} rounded-t">${l}</th>`;
+            resLabels.forEach((label, idx) => {
+                // UPDATE: Highlight Header if column has error
+                const errClass = colsInTrouble.has(idx) ? 'header-error' : '';
+                theadHtml += `<th class="p-2 min-w-[80px] ${errClass} rounded">${label}</th>`;
             });
-            thead += `<th class="p-2 w-24 text-center">Act</th></tr>`;
-            table.querySelector('thead').innerHTML = thead;
+            theadHtml += `<th class="p-2 w-24 text-center">Actions</th></tr>`;
+            table.querySelector('thead').innerHTML = theadHtml;
 
+            // 3. Build Body
             const tbody = document.getElementById('projectRows');
             tbody.innerHTML = '';
             
             projects.forEach((p, idx) => {
-                // Check if this project contributes to an overload
-                let isTrouble = false;
-                resKeys.forEach(k => {
+                let isProjectInTrouble = false;
+                let errorMessages = [];
+                resKeys.forEach((k, rIdx) => {
                     const stats = getClusterUsageStats(p.clusterId, k);
-                    if(stats.exceeded > 0 && parseFloat(p[k]) > 0) isTrouble = true;
+                    if (stats.exceeded > 0 && parseFloat(p[k]) > 0) {
+                        isProjectInTrouble = true;
+                        errorMessages.push(getUnifiedWarning(rIdx, p.clusterId));
+                    }
                 });
-                const nameErr = isTrouble ? 'input-error' : '';
 
+                const nameErrorClass = isProjectInTrouble ? 'input-error' : '';
+                const nameId = `proj_name_${idx}`;
                 const opts = clusterState.map(c => `<option value="${c.id}" ${c.id === p.clusterId ? 'selected' : ''}>${c.name}</option>`).join('');
                 
-                let row = `
-                    <td class="p-1 text-center sticky-col-1 draggable-row" title="Drag to reorder">
-                        <input type="color" value="${p.color}" onchange="updateProj(${idx}, 'color', this.value)" class="cursor-pointer">
+                let row = document.createElement('tr');
+                row.setAttribute('draggable', true);
+                row.setAttribute('data-index', idx);
+                row.addEventListener('dragstart', handleDragStart);
+                row.addEventListener('dragover', handleDragOver);
+                row.addEventListener('dragenter', handleDragEnter);
+                row.addEventListener('dragleave', handleDragLeave);
+                row.addEventListener('drop', handleDrop);
+                row.addEventListener('dragend', handleDragEnd);
+
+                row.innerHTML = `
+                    <td class="p-1 text-center sticky-col-1 cursor-grab active:cursor-grabbing text-slate-400 drag-handle">⠿</td>
+                    <td class="p-1 text-center sticky-col-2">
+                        <div class="w-6 h-6 mx-auto rounded overflow-hidden">
+                            <input type="color" value="${p.color}" onchange="updateProj(${idx}, 'color', this.value)" class="w-full h-full p-0 border-none cursor-pointer">
+                        </div>
                     </td>
-                    <td class="p-1 sticky-col-2"><input type="text" class="${inputBase} ${nameErr}" value="${p.name}" onchange="updateProj(${idx}, 'name', this.value)"></td>
+                    <td class="p-1"><input id="${nameId}" type="text" class="${inputBase} ${nameErrorClass}" value="${p.name}" onchange="updateProj(${idx}, 'name', this.value)" oninput="autoFitInput(this)"></td>
                     <td class="p-1"><select class="${inputBase}" onchange="updateProj(${idx}, 'clusterId', this.value)">${opts}</select></td>`;
                 
-                resKeys.forEach(k => {
-                    // Value Cells are NOT red anymore, per request
-                    row += `<td class="p-1"><input type="number" class="${inputBase}" value="${p[k]}" onchange="updateProj(${idx}, '${k}', this.value)" min="0"></td>`;
+                if(isProjectInTrouble) { setTimeout(() => { const el = document.getElementById(nameId); if(el) bindLongPress(el, () => showPopup(errorMessages[0])); }, 0); }
+
+                resKeys.forEach((k, rIdx) => {
+                    const cellId = `proj_${idx}_${k}`;
+                    row.innerHTML += `<td class="p-1"><input id="${cellId}" type="number" class="${inputBase}" value="${p[k]}" onchange="updateProj(${idx}, '${k}', this.value)" min="0" oninput="autoFitInput(this)"></td>`;
                 });
                 
-                row += `<td class="p-1 text-center flex justify-center gap-1">
-                    <button class="bg-amber-500 text-white p-1 rounded" onclick="duplicateProj(${idx})">📄</button>
-                    <button class="bg-red-500 text-white p-1 rounded" onclick="removeProj(${idx})">×</button>
+                row.innerHTML += `<td class="p-1 text-center flex justify-center gap-1">
+                    <button class="bg-amber-500 text-white p-1.5 rounded hover:bg-amber-600 shadow" onclick="duplicateProj(${idx})"><svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button>
+                    <button class="bg-red-500 text-white p-1.5 rounded hover:bg-red-600 shadow" onclick="removeProj(${idx})"><svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
                 </td>`;
-                tbody.innerHTML += `<tr class="bg-white dark:bg-slate-800 border-b border-slate-100 dark:border-slate-700">${row}</tr>`;
+                tbody.appendChild(row);
             });
+            setTimeout(() => document.querySelectorAll('.autosize-input').forEach(autoFitInput), 10);
         }
 
-        // --- Chart ---
         function getCssVar(name) { return getComputedStyle(document.body).getPropertyValue(name).trim(); }
         function getStripePattern(color) {
             const c = document.createElement('canvas'); const x = c.getContext('2d');
             c.width=10; c.height=10; x.fillStyle=color; x.fillRect(0,0,10,10);
-            x.strokeStyle='rgba(255,255,255,0.7)'; x.lineWidth=2; x.beginPath(); x.moveTo(0,10); x.lineTo(10,0); x.stroke();
+            x.strokeStyle='rgba(0,0,0,0.8)'; x.lineWidth=2; x.beginPath(); x.moveTo(0,10); x.lineTo(10,0); x.stroke();
             return c;
         }
 
@@ -419,22 +479,25 @@
             id: 'gridOverlay',
             afterDatasetsDraw(chart) {
                 const ctx = chart.ctx; const xAxis = chart.scales.x; const yAxis = chart.scales.y;
-                const majorColor = localStorage.getItem('theme') === 'dark' ? '#cbd5e1' : '#1e293b';
+                const gridColor = localStorage.getItem('theme') === 'dark' ? '#cbd5e1' : '#1e293b';
                 
-                // Draw 10 Sections (10% lines) for each cluster
-                clusterState.forEach((c, idx) => {
-                    const base = idx * 100;
-                    // Draw 10% subdivisions
-                    ctx.strokeStyle = 'rgba(0,0,0,0.5)'; // Clear black borders
-                    ctx.lineWidth = 1;
-                    for(let i=1; i<10; i++) {
-                        const x = xAxis.getPixelForValue(base + (i*10));
-                        ctx.beginPath(); ctx.moveTo(x, yAxis.top); ctx.lineTo(x, yAxis.bottom); ctx.stroke();
+                // 10 Section Split logic
+                const clusterWidth = xAxis.getPixelForValue(100) - xAxis.getPixelForValue(0);
+                
+                clusterState.forEach((c, i) => {
+                    const startX = xAxis.getPixelForValue(i * 100);
+                    // Draw 10 lines per cluster
+                    for(let j=1; j<=10; j++) {
+                        const x = startX + (clusterWidth * (j/10));
+                        ctx.save();
+                        ctx.beginPath();
+                        ctx.moveTo(x, yAxis.top);
+                        ctx.lineTo(x, yAxis.bottom);
+                        ctx.lineWidth = j===10 ? 3 : 1; // Thick line at 100%
+                        ctx.strokeStyle = j===10 ? gridColor : 'rgba(0,0,0,0.2)';
+                        ctx.stroke();
+                        ctx.restore();
                     }
-                    // Draw Cluster Divider (Thick)
-                    const endX = xAxis.getPixelForValue(base + 100);
-                    ctx.strokeStyle = majorColor; ctx.lineWidth = 2;
-                    ctx.beginPath(); ctx.moveTo(endX, yAxis.top); ctx.lineTo(endX, yAxis.bottom); ctx.stroke();
                 });
             }
         };
@@ -442,145 +505,91 @@
 
         function updateChart() {
             const ctx = document.getElementById('utilizationChart').getContext('2d');
-            let offsets = Array(resKeys.length).fill(0).map(() => ({})); 
-            clusterState.forEach(c => offsets.forEach(row => row[c.id] = 0));
+            let usageMap = {}; clusterState.forEach(c => usageMap[c.id] = Array(resKeys.length).fill(0));
+            let offsets = Array(resKeys.length).fill(0).map(() => ({})); clusterState.forEach(c => offsets.forEach(row => row[c.id] = 0));
             let datasets = [];
 
-            // Background (Capacity) - Just 0 to 100 relative
             const bgBarColor = getCssVar('--bg-grey-bar');
             clusterState.forEach((c, i) => {
                 datasets.push({
                     label: `_BG_${c.id}`, 
-                    data: resKeys.map(() => [i*100, (i*100)+100]),
-                    backgroundColor: bgBarColor, 
-                    barPercentage: 0.9, categoryPercentage: 0.9, grouped: false, order: 10,
-                    clusterId: c.id
+                    data: resKeys.map(() => [i*100 + 2, (i*100)+98]), // GAP logic: 2% padding
+                    backgroundColor: bgBarColor, barPercentage: 0.8, categoryPercentage: 0.9, grouped: false, order: 10, clusterId: c.id, clusterName: c.name
                 });
             });
 
-            // Project Bars
-            const GAP = 1; // Gap between dividers and bars
             projects.forEach((p, index) => {
+                if(hiddenProjectIndices.has(index)) return;
+                if(!usageMap[p.clusterId]) return;
+                
                 let pts = []; let bgColors = [];
                 const cIndex = clusterState.findIndex(c => c.id === p.clusterId);
-                if (cIndex === -1) return; 
-
                 const base = cIndex * 100;
-                const clusterObj = clusterState[cIndex];
 
                 resKeys.forEach((key, rIdx) => {
-                    const cap = parseFloat(clusterObj[key]) || 1;
-                    const pct = (p[key] / cap) * 100;
-                    
-                    let start = base + offsets[rIdx][p.clusterId];
+                    const pct = (p[key] / (parseFloat(clusterState[cIndex][key])||1)) * 100;
+                    // Visual Offset due to gap
+                    const gapOffset = 2; // Start 2 units in
+                    let start = base + gapOffset + offsets[rIdx][p.clusterId]; 
                     let end = start + pct;
                     let isOverloaded = false;
-
-                    // Apply Gaps at edges
-                    let drawStart = start; 
-                    let drawEnd = end;
-
-                    // If Start is the 0 line, push it slightly
-                    if (Math.abs(start - base) < 0.1) drawStart += GAP;
                     
-                    // Cap visual at 100%
-                    if (end > base + 100) { 
-                        drawEnd = base + 100 - GAP; 
-                        isOverloaded = true; 
-                    } else if (Math.abs(end - (base+100)) < 0.1) {
-                         drawEnd -= GAP; // Don't touch right line
-                    }
+                    if(end > base + 98) { end = base + 98; isOverloaded = true; }
 
-                    if (pct > 0 && start < end) {
-                        pts.push([drawStart, drawEnd]);
-                    } else if (isOverloaded) {
-                        pts.push([drawStart, drawEnd]); // Draw overload truncated
-                    } else {
-                        pts.push(null);
-                    }
+                    if (pct > 0 && start < end) pts.push([start, end]);
+                    else if (isOverloaded && start < (base + 98)) pts.push([start, base+98]);
+                    else pts.push(null);
                     
                     bgColors.push(isOverloaded ? ctx.createPattern(getStripePattern(p.color), 'repeat') : p.color);
-                    offsets[rIdx][p.clusterId] += pct;
+                    usageMap[p.clusterId][rIdx] += pct; offsets[rIdx][p.clusterId] += pct;
                 });
                 
                 datasets.push({ 
                     label: p.name, data: pts, backgroundColor: bgColors,
-                    barPercentage: 0.9, categoryPercentage: 0.9, grouped: false, order: 1,
-                    originalIndex: index
+                    barPercentage: 0.8, categoryPercentage: 0.9, grouped: false, order: 1,
+                    originalIndex: index, 
+                    overloadInfo: pts.map((pt, i) => {
+                        if(!pt) return null;
+                        const stats = getClusterUsageStats(p.clusterId, resKeys[i]);
+                        return stats.exceeded > 0 ? { rIdx: i, cId: p.clusterId } : null;
+                    })
                 });
             });
 
             if (myChart) myChart.destroy();
             const textColor = getCssVar('--chart-text');
-            const maxVal = clusterState.length * 100;
 
             myChart = new Chart(ctx, {
                 type: 'bar',
                 data: { labels: resLabels, datasets: datasets },
                 options: {
                     indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+                    onClick: (e, elements) => {
+                        if (elements.length > 0) {
+                            const el = elements[0];
+                            const ds = myChart.data.datasets[el.datasetIndex];
+                            const info = ds.overloadInfo && ds.overloadInfo[el.index];
+                            if(info) showPopup(getUnifiedWarning(info.rIdx, info.cId));
+                        }
+                    },
                     scales: {
                         x: { 
-                            min: 0, max: maxVal, stacked: false, 
-                            grid: { display: false }, 
-                            ticks: { 
-                                color: textColor, 
-                                callback: v => (v % 100 === 0 && v !== 0 && v !== maxVal) ? '100% / 0%' : (v===0 || v===maxVal) ? (v===0?'0%':'100%') : '' 
-                            } 
+                            min: 0, max: clusterState.length * 100, 
+                            stacked: false, grid: { display: false }, 
+                            ticks: { display: false } // Hide default ticks, we draw lines manually
                         },
-                        x2: { 
-                            position: 'top', min: 0, max: maxVal, grid: { display: false }, 
-                            ticks: { 
-                                color: textColor, font: { weight: 'bold', size: 12 }, 
-                                callback: v => {
-                                    if(v % 100 === 50) {
-                                        const idx = Math.floor(v/100);
-                                        return clusterState[idx]?.name || '';
-                                    }
-                                    return '';
-                                } 
-                            } 
-                        },
+                        x2: { position: 'top', min: 0, max: clusterState.length * 100, grid: { display: false }, ticks: { color: textColor, font: { weight: 'bold', size: 12 }, callback: v => {
+                            const cIdx = v / 100 - 0.5;
+                            return (Number.isInteger(cIdx) && clusterState[cIdx]) ? clusterState[cIdx].name : '';
+                        }} },
                         y: { stacked: false, ticks: { color: textColor, font: {size: 11} } }
                     },
                     plugins: {
                         legend: { 
                             display: true, position: 'top', 
-                            labels: { filter: i => !i.text.startsWith('_BG_'), color: textColor },
-                            onClick: (e, item) => {
-                                // Default hide logic
-                                const idx = item.datasetIndex;
-                                const ci = myChart;
-                                if (ci.isDatasetVisible(idx)) ci.hide(idx); else ci.show(idx);
-                            }
-                        },
-                        tooltip: {
-                            callbacks: {
-                                label: function(ctx) {
-                                    if (ctx.dataset.label.startsWith('_BG_')) return '';
-                                    const p = projects[ctx.dataset.originalIndex];
-                                    if (!p) return '';
-                                    const val = p[resKeys[ctx.dataIndex]] || 0;
-                                    return `${ctx.dataset.label}: ${val}`;
-                                }
-                            }
-                        }
-                    }
-                }
-            });
-        }
-
-        // Popup Logic
-        function showPopup(msg) {
-            const popup = document.getElementById('custom-popup');
-            document.getElementById('popup-content').innerText = msg;
-            popup.classList.remove('hidden-popup'); popup.classList.add('visible-popup');
-            setTimeout(hidePopup, 3000);
-        }
-        function hidePopup() {
-            const p = document.getElementById('custom-popup');
-            p.classList.remove('visible-popup'); p.classList.add('hidden-popup');
-        }
-    </script>
-</body>
-</html>
+                            labels: { 
+                                filter: i => !i.text.startsWith('_BG_'), 
+                                color: textColor,
+                                generateLabels: (chart) => {
+                                    return projects.map((p, i) => ({
+                                        text: p.name, fillStyle: p.color, hidden: hiddenProjectIndices.has(i), index: i, textDecoration: hiddenProjectIndices.has(i) ? 'line-through' : ''
