@@ -180,7 +180,6 @@
             if (!loadState()) resetDataToDefaults(false);
             applyThemeClass(); refreshUI();
             
-            // Safe service worker registration
             if ('serviceWorker' in navigator) {
                 navigator.serviceWorker.register('sw.js?v=' + Date.now())
                     .then(reg => reg.update())
@@ -364,14 +363,14 @@
         const inputBase = "autosize-input bg-slate-50 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded px-1 py-1 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-blue-500 focus:outline-none";
         const headerInput = "editable-header font-bold text-center text-slate-700 dark:text-slate-200";
 
-        // Helper to construct elements safely (Prevents XSS)
+        // Helper to construct elements safely
         function createEl(tag, className, props = {}) {
             const el = document.createElement(tag);
             if(className) el.className = className;
             Object.entries(props).forEach(([k, v]) => {
                 if (k.startsWith('on')) el.addEventListener(k.substring(2).toLowerCase(), v);
                 else if (k === 'text') el.textContent = v;
-                else if (k === 'html') el.innerHTML = v; // Only use for static icons
+                else if (k === 'html') el.innerHTML = v;
                 else el.setAttribute(k, v);
             });
             return el;
@@ -533,12 +532,10 @@
         }
 
         function getCssVar(name) { return getComputedStyle(document.body).getPropertyValue(name).trim(); }
-        function getStripePattern(color) {
-            const c = document.createElement('canvas'); const x = c.getContext('2d');
-            c.width=10; c.height=10; x.fillStyle=color; x.fillRect(0,0,10,10);
-            x.strokeStyle='rgba(255,255,255,0.7)'; x.lineWidth=2; x.beginPath(); x.moveTo(0,10); x.lineTo(10,0); x.stroke();
-            return c;
-        }
+
+        const CLUSTER_WIDTH = 100;
+        const GAP_WIDTH = 30; // Spacing between clusters
+        const CLUSTER_STRIDE = CLUSTER_WIDTH + GAP_WIDTH;
 
         const gridOverlayPlugin = {
             id: 'gridOverlay',
@@ -546,12 +543,15 @@
                 const ctx = chart.ctx; const xAxis = chart.scales.x; const yAxis = chart.scales.y;
                 const gridColor = localStorage.getItem('theme') === 'dark' ? '#cbd5e1' : '#1e293b';
 
-                // Draw 10-section grid
-                const clusterWidth = xAxis.getPixelForValue(100) - xAxis.getPixelForValue(0);
+                // 1. Draw 10-section grid within the Cluster Width (100 units)
+                const oneUnitPx = (xAxis.getPixelForValue(100) - xAxis.getPixelForValue(0)) / 100;
+
                 clusterState.forEach((c, i) => {
-                    const startX = xAxis.getPixelForValue(i * 100);
+                    const clusterStartVal = i * CLUSTER_STRIDE;
+                    const startX = xAxis.getPixelForValue(clusterStartVal);
+                    
                     for(let j=1; j<=10; j++) {
-                        const x = startX + (clusterWidth * (j/10));
+                        const x = startX + (oneUnitPx * 10 * j);
                         ctx.save(); ctx.beginPath(); ctx.moveTo(x, yAxis.top); ctx.lineTo(x, yAxis.bottom);
                         // Make 100% line thicker
                         ctx.lineWidth = j===10 ? 2 : 0.5;
@@ -559,9 +559,18 @@
                         if(localStorage.getItem('theme') === 'dark' && j!==10) ctx.strokeStyle = 'rgba(255,255,255,0.1)';
                         ctx.stroke(); ctx.restore();
                     }
+
+                    // 2. Draw Separator Line in the Gap
+                    if (i < clusterState.length - 1) {
+                        const gapMidX = xAxis.getPixelForValue(clusterStartVal + 100 + (GAP_WIDTH / 2));
+                        ctx.save(); ctx.beginPath();
+                        ctx.moveTo(gapMidX, yAxis.top); ctx.lineTo(gapMidX, yAxis.bottom);
+                        ctx.lineWidth = 2; ctx.strokeStyle = '#94a3b8'; // Neutral grey separator
+                        ctx.stroke(); ctx.restore();
+                    }
                 });
 
-                // DRAW OVERFLOW APPENDAGE
+                // 3. DRAW OVERFLOW APPENDAGE
                 const datasets = chart.data.datasets;
                 clusterState.forEach((c, cIndex) => {
                     resKeys.forEach((key, rIndex) => {
@@ -576,7 +585,11 @@
                                 }
                             }
 
-                            const x100 = xAxis.getPixelForValue((cIndex + 1) * 100);
+                            // Position box at 100% mark of this cluster
+                            const clusterEndVal = (cIndex * CLUSTER_STRIDE) + 100;
+                            const xStartPx = xAxis.getPixelForValue(clusterEndVal);
+                            const widthPx = oneUnitPx * (GAP_WIDTH - 5); // Use most of the gap width
+                            
                             const meta = chart.getDatasetMeta(0);
                             const barModel = meta.data[rIndex];
 
@@ -584,25 +597,44 @@
                                 const y = barModel.y;
                                 const height = barModel.height;
                                 const top = y - height/2;
+                                const gap = 2;
 
-                                const rectWidth = 40;
-                                const gap = 5;
-                                const boxX = x100 + gap;
+                                const boxX = xStartPx + gap;
+                                const boxW = widthPx;
 
                                 ctx.save();
-                                const pattern = getStripePattern(lastColor);
-                                ctx.fillStyle = pattern;
-                                ctx.fillRect(boxX, top, rectWidth, height);
+                                
+                                // Draw Stripes Manually (fixes Black Box issue)
+                                ctx.beginPath();
+                                ctx.rect(boxX, top, boxW, height);
+                                ctx.clip(); // Clip drawing to the box area
 
+                                // Background for contrast
+                                ctx.fillStyle = localStorage.getItem('theme') === 'dark' ? '#1e293b' : '#ffffff';
+                                ctx.fill();
+
+                                ctx.strokeStyle = lastColor;
+                                ctx.lineWidth = 3;
+                                // Draw diagonals
+                                for (let lx = boxX - height; lx < boxX + boxW; lx += 6) {
+                                    ctx.beginPath();
+                                    ctx.moveTo(lx, top + height);
+                                    ctx.lineTo(lx + height, top);
+                                    ctx.stroke();
+                                }
+
+                                // Border
+                                ctx.restore(); // Remove clip
                                 ctx.strokeStyle = gridColor;
                                 ctx.lineWidth = 1;
-                                ctx.strokeRect(boxX, top, rectWidth, height);
+                                ctx.strokeRect(boxX, top, boxW, height);
 
+                                // Bracket logic
                                 ctx.beginPath();
                                 ctx.moveTo(boxX, top - 2);
                                 ctx.lineTo(boxX, top - 6);
-                                ctx.lineTo(boxX + rectWidth, top - 6);
-                                ctx.lineTo(boxX + rectWidth, top - 2);
+                                ctx.lineTo(boxX + boxW, top - 6);
+                                ctx.lineTo(boxX + boxW, top - 2);
                                 ctx.strokeStyle = gridColor;
                                 ctx.stroke();
 
@@ -611,9 +643,7 @@
                                 ctx.textAlign = 'center';
                                 ctx.textBaseline = 'bottom';
                                 const pct = Math.round((stats.exceeded / stats.capacity) * 100);
-                                ctx.fillText(`Exceeded: ${pct}%`, boxX + rectWidth/2, top - 7);
-
-                                ctx.restore();
+                                ctx.fillText(`Exceeded: ${pct}%`, boxX + boxW/2, top - 7);
                             }
                         }
                     });
@@ -630,36 +660,58 @@
             const bgBarColor = getCssVar('--bg-grey-bar');
             const textColor = getCssVar('--chart-text');
 
+            // BG Bars (The grey containers)
             clusterState.forEach((c, i) => {
+                const startX = i * CLUSTER_STRIDE;
                 datasets.push({
-                    label: `_BG_${c.id}`, data: resKeys.map(() => [i*100 + 2, (i*100)+98]),
-                    backgroundColor: bgBarColor, barPercentage: 0.8, categoryPercentage: 0.9, grouped: false, order: 10, clusterId: c.id, clusterName: c.name
+                    label: `_BG_${c.id}`, 
+                    data: resKeys.map(() => [startX, startX + 100]), // Only draw 0 to 100
+                    backgroundColor: bgBarColor, 
+                    barPercentage: 0.8, categoryPercentage: 0.9, grouped: false, order: 10, 
+                    clusterId: c.id, clusterName: c.name
                 });
             });
 
+            // Project Bars
             projects.forEach((p, index) => {
                 if(hiddenProjectIndices.has(index)) return;
                 if(!usageMap[p.clusterId]) return;
                 let pts = []; let bgColors = [];
                 const cIndex = clusterState.findIndex(c => c.id === p.clusterId);
-                const base = cIndex * 100;
+                const clusterBase = cIndex * CLUSTER_STRIDE;
 
                 resKeys.forEach((key, rIdx) => {
-                    const pct = (p[key] / (parseFloat(clusterState[cIndex][key])||1)) * 100;
-                    const gapOffset = 2;
-                    let start = base + gapOffset + offsets[rIdx][p.clusterId];
-
-                    let visualStart = Math.min(start, base + 98);
-                    let visualEnd = Math.min(start + pct, base + 98);
-
-                    if (pct > 0 && visualStart < visualEnd) {
-                        pts.push([visualStart, visualEnd]);
-                    } else {
+                    const totalCap = parseFloat(clusterState[cIndex][key]) || 1;
+                    const usedUnits = p[key];
+                    const pct = (usedUnits / totalCap) * 100;
+                    
+                    // Current start position relative to cluster 0-100
+                    let currentOffset = offsets[rIdx][p.clusterId];
+                    let startVal = clusterBase + currentOffset;
+                    
+                    // Clamp visual bar to 100% max
+                    let visualStart = startVal;
+                    let visualEnd = startVal + pct;
+                    
+                    // If start is beyond 100%, don't draw (handled by appendage)
+                    if (currentOffset >= 100) {
                         pts.push(null);
+                    } else {
+                        // If end goes beyond 100%, clamp it
+                        if (visualEnd > clusterBase + 100) {
+                            visualEnd = clusterBase + 100;
+                        }
+                        
+                        if (visualEnd > visualStart) {
+                            pts.push([visualStart, visualEnd]);
+                        } else {
+                            pts.push(null);
+                        }
                     }
 
                     bgColors.push(p.color);
-                    usageMap[p.clusterId][rIdx] += pct; offsets[rIdx][p.clusterId] += pct;
+                    usageMap[p.clusterId][rIdx] += pct; 
+                    offsets[rIdx][p.clusterId] += pct;
                 });
 
                 datasets.push({
@@ -668,15 +720,18 @@
                 });
             });
 
-            // OPTIMIZATION: Update existing chart instead of destroying it
+            // Calculate Scale Max
+            const maxX = clusterState.length * CLUSTER_STRIDE;
+
+            // Update or Create Chart
             if (myChart) {
                 myChart.data.labels = resLabels;
                 myChart.data.datasets = datasets;
-                myChart.options.scales.x.max = clusterState.length * 100;
-                myChart.options.scales.x2.max = clusterState.length * 100;
+                myChart.options.scales.x.max = maxX;
+                myChart.options.scales.x2.max = maxX;
                 myChart.options.scales.x2.ticks.color = textColor;
                 myChart.options.scales.y.ticks.color = textColor;
-                myChart.update(); // Smooth transition
+                myChart.update();
             } else {
                 myChart = new Chart(ctx, {
                     type: 'bar',
@@ -685,10 +740,15 @@
                         indexAxis: 'y', responsive: true, maintainAspectRatio: false,
                         onClick: (e, elements) => {},
                         scales: {
-                            x: { min: 0, max: clusterState.length * 100, stacked: false, grid: { display: false }, ticks: { display: false } },
-                            x2: { position: 'top', min: 0, max: clusterState.length * 100, grid: { display: false }, ticks: { color: textColor, font: { weight: 'bold', size: 12 }, callback: v => {
-                                const cIdx = v / 100 - 0.5;
-                                return (Number.isInteger(cIdx) && clusterState[cIdx]) ? clusterState[cIdx].name : '';
+                            x: { min: 0, max: maxX, stacked: false, grid: { display: false }, ticks: { display: false } },
+                            x2: { position: 'top', min: 0, max: maxX, grid: { display: false }, ticks: { color: textColor, font: { weight: 'bold', size: 12 }, callback: v => {
+                                // Find which cluster this value belongs to
+                                // Center of cluster i is: (i * STRIDE) + (WIDTH / 2)
+                                for(let i=0; i<clusterState.length; i++) {
+                                    const center = (i * CLUSTER_STRIDE) + (CLUSTER_WIDTH / 2);
+                                    if (Math.abs(v - center) < 5) return clusterState[i].name;
+                                }
+                                return '';
                             }} },
                             y: { stacked: false, ticks: { color: textColor, font: {size: 11} } }
                         },
