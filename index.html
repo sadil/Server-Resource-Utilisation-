@@ -92,7 +92,7 @@
                 <h2 class="text-base font-semibold mb-2">Utilization</h2>
                 <div class="bg-slate-50 dark:bg-slate-900/50 p-2 rounded border-l-4 border-blue-500 text-xs sm:text-sm text-slate-600 dark:text-slate-400 mb-3">
                     <span class="inline-block w-3 h-3 bg-slate-200 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 mr-1 align-middle"></span> 
-                    <strong>Grey</strong>: Free Space. <strong>Striped Box</strong>: Demand Exceeded.<br>
+                    <strong>Grey</strong>: Free Space. <strong>Striped Appendage</strong>: Demand Exceeded.<br>
                     <span class="text-red-500 font-bold">*</span> Drag table rows to reorder.
                 </div>
                 <div class="relative h-[600px] w-full">
@@ -186,7 +186,7 @@
 
         function loadState() {
             try {
-                const stored = localStorage.getItem('serverDashboardData_v18');
+                const stored = localStorage.getItem('serverDashboardData_v19');
                 if (!stored) return false;
                 const data = JSON.parse(stored);
                 if (!data.clusters || !data.projects) return false;
@@ -198,7 +198,7 @@
         }
         function saveState() {
             const data = { clusters: clusterState, projects: projects, labels: resLabels, keys: resKeys, theme: localStorage.getItem('theme') || 'light' };
-            localStorage.setItem('serverDashboardData_v18', JSON.stringify(data));
+            localStorage.setItem('serverDashboardData_v19', JSON.stringify(data));
         }
 
         function toggleTheme() {
@@ -245,7 +245,6 @@
             return { used: totalUsed, capacity: capacity, exceeded: Math.max(0, totalUsed - capacity) };
         }
 
-        // --- Data Mods ---
         window.addNewResource = function() {
             const name = prompt("Enter Name for new Resource:");
             if(!name) return;
@@ -305,7 +304,7 @@
             }
         }
 
-        // --- Drag Handlers (Touch & Mouse) ---
+        // --- Drag Handlers ---
         function handleDragStart(e) { dragSrcEl = this; e.dataTransfer.effectAllowed = 'move'; this.classList.add('opacity-50'); }
         function handleDragOver(e) { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; return false; }
         function handleDragEnter(e) { this.classList.add('bg-slate-200', 'dark:bg-slate-700'); }
@@ -500,21 +499,14 @@
                     }
                 });
 
-                // DRAW VISUAL OVERFLOW APPENDAGE
-                // We iterate through datasets to find overloads
+                // DRAW OVERFLOW APPENDAGE
                 const datasets = chart.data.datasets;
-                // We need to group by row (resource) + cluster
-                // Chart.js stacks horizontally.
-                // We will manually calculate overloads here for rendering the appendage
-                
-                // For each cluster, for each resource row
                 clusterState.forEach((c, cIndex) => {
                     resKeys.forEach((key, rIndex) => {
                         const stats = getClusterUsageStats(c.id, key);
                         if (stats.exceeded > 0) {
-                            // Determine last contributing project's color
-                            let lastColor = '#000';
-                            // Iterate backwards
+                            // Find color of last contributing project
+                            let lastColor = '#ef4444'; // default red
                             for(let pIdx = projects.length - 1; pIdx >= 0; pIdx--) {
                                 const p = projects[pIdx];
                                 if (p.clusterId === c.id && parseFloat(p[key]) > 0 && !hiddenProjectIndices.has(pIdx)) {
@@ -523,14 +515,8 @@
                                 }
                             }
 
-                            // Calculate Coordinates
-                            // X position of 100% line for this cluster
                             const x100 = xAxis.getPixelForValue((cIndex + 1) * 100);
-                            
-                            // Y Position: We need the specific bar's Y.
-                            // We can get this from any visible dataset meta for this index
-                            const meta = chart.getDatasetMeta(0); // Start with first, check visibility
-                            // But data is stacked. All bars in a row share the same Y center/height.
+                            const meta = chart.getDatasetMeta(0);
                             const barModel = meta.data[rIndex];
                             
                             if(barModel) {
@@ -538,23 +524,19 @@
                                 const height = barModel.height;
                                 const top = y - height/2;
                                 
-                                // Draw Appendage (Arbitrary rectangle 40px wide)
                                 const rectWidth = 40;
                                 const gap = 5;
                                 const boxX = x100 + gap;
                                 
                                 ctx.save();
-                                // Fill with stripe pattern of last color
                                 const pattern = getStripePattern(lastColor);
                                 ctx.fillStyle = pattern;
                                 ctx.fillRect(boxX, top, rectWidth, height);
                                 
-                                // Border
                                 ctx.strokeStyle = gridColor;
                                 ctx.lineWidth = 1;
                                 ctx.strokeRect(boxX, top, rectWidth, height);
                                 
-                                // Draw Bracket Line
                                 ctx.beginPath();
                                 ctx.moveTo(boxX, top - 2);
                                 ctx.lineTo(boxX, top - 6);
@@ -563,13 +545,12 @@
                                 ctx.strokeStyle = gridColor;
                                 ctx.stroke();
                                 
-                                // Draw Text
                                 ctx.fillStyle = gridColor;
-                                ctx.font = 'bold 10px Arial';
+                                ctx.font = 'bold 9px Arial';
                                 ctx.textAlign = 'center';
                                 ctx.textBaseline = 'bottom';
                                 const pct = Math.round((stats.exceeded / stats.capacity) * 100);
-                                ctx.fillText(`Exceeded: ${pct}%`, boxX + rectWidth/2, top - 8);
+                                ctx.fillText(`Exceeded: ${pct}%`, boxX + rectWidth/2, top - 7);
                                 
                                 ctx.restore();
                             }
@@ -597,7 +578,6 @@
             projects.forEach((p, index) => {
                 if(hiddenProjectIndices.has(index)) return;
                 if(!usageMap[p.clusterId]) return;
-                
                 let pts = []; let bgColors = [];
                 const cIndex = clusterState.findIndex(c => c.id === p.clusterId);
                 const base = cIndex * 100;
@@ -608,26 +588,21 @@
                     let start = base + gapOffset + offsets[rIdx][p.clusterId]; 
                     let end = start + pct;
                     
-                    // Clamp visual bar at 98% (visual 100%)
+                    // CLAMP AT 100%
                     if(end > base + 98) { end = base + 98; }
 
                     if (pct > 0 && start < end) pts.push([start, end]);
-                    else if (pct > 0 && start >= end) pts.push([start, base+98]); // Draw full if overflowing
+                    else if (pct > 0 && start >= end) pts.push([start, base+98]);
                     else pts.push(null);
                     
-                    // Solid colors for main bars
-                    bgColors.push(p.color);
+                    bgColors.push(p.color); // Solid color in main bar
                     usageMap[p.clusterId][rIdx] += pct; offsets[rIdx][p.clusterId] += pct;
                 });
                 
                 datasets.push({ 
                     label: p.name, data: pts, backgroundColor: bgColors,
                     barPercentage: 0.8, categoryPercentage: 0.9, grouped: false, order: 1, originalIndex: index,
-                    overloadInfo: pts.map((pt, i) => {
-                        if(!pt) return null;
-                        const stats = getClusterUsageStats(p.clusterId, resKeys[i]);
-                        return stats.exceeded > 0 ? { rIdx: i, cId: p.clusterId } : null;
-                    })
+                    // No overloadInfo needed here, plugin handles overlay
                 });
             });
 
@@ -639,20 +614,8 @@
                 data: { labels: resLabels, datasets: datasets },
                 options: {
                     indexAxis: 'y', responsive: true, maintainAspectRatio: false,
-                    onClick: (e, elements) => {
-                        if (elements.length > 0) {
-                            const el = elements[0];
-                            const ds = myChart.data.datasets[el.datasetIndex];
-                            const info = ds.overloadInfo && ds.overloadInfo[el.index];
-                            if(info) showPopup(getUnifiedWarning(info.rIdx, info.cId));
-                        }
-                    },
                     scales: {
-                        x: { 
-                            min: 0, max: clusterState.length * 100, 
-                            stacked: false, grid: { display: false }, 
-                            ticks: { display: false } 
-                        },
+                        x: { min: 0, max: clusterState.length * 100, stacked: false, grid: { display: false }, ticks: { display: false } },
                         x2: { position: 'top', min: 0, max: clusterState.length * 100, grid: { display: false }, ticks: { color: textColor, font: { weight: 'bold', size: 12 }, callback: v => {
                             const cIdx = v / 100 - 0.5;
                             return (Number.isInteger(cIdx) && clusterState[cIdx]) ? clusterState[cIdx].name : '';
@@ -663,8 +626,7 @@
                         legend: { 
                             display: true, position: 'top', 
                             labels: { 
-                                filter: i => !i.text.startsWith('_BG_'), 
-                                color: textColor,
+                                filter: i => !i.text.startsWith('_BG_'), color: textColor,
                                 generateLabels: (chart) => {
                                     return projects.map((p, i) => ({
                                         text: p.name, fillStyle: p.color, hidden: hiddenProjectIndices.has(i), index: i, textDecoration: hiddenProjectIndices.has(i) ? 'line-through' : ''
@@ -691,7 +653,11 @@
                                     const p = projects[ctx.dataset.originalIndex];
                                     if (!p) return '';
                                     const val = p[resKeys[ctx.dataIndex]] || 0;
-                                    return `${ctx.dataset.label}: ${(ctx.raw[1]-ctx.raw[0]).toFixed(1)}% (${val})`;
+                                    // Calculate Actual % even if bar is clamped
+                                    const cIndex = clusterState.findIndex(c => c.id === p.clusterId);
+                                    const cap = parseFloat(clusterState[cIndex][resKeys[ctx.dataIndex]]) || 1;
+                                    const realPct = (val / cap) * 100;
+                                    return `${ctx.dataset.label}: ${realPct.toFixed(1)}% (${val})`;
                                 }
                             }
                         }
