@@ -7,7 +7,7 @@
     <meta http-equiv="Expires" content="0">
     <meta name="viewport" content="width=device-width, initial-scale=0.85, maximum-scale=5.0, user-scalable=yes">
     <title>Server Utilisation</title>
-    
+
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#1e293b">
     <link rel="apple-touch-icon" href="icon-192.png">
@@ -28,12 +28,12 @@
         /* Utilities */
         input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
         input[type=number] { -moz-appearance: textfield; }
-        
-        /* Custom Color Picker Reset - Removes white border */
-        input[type="color"] { 
-            -webkit-appearance: none; border: none; padding: 0; 
-            width: 100%; height: 100%; 
-            opacity: 0; cursor: pointer; /* Invisible input on top of colored div */
+
+        /* Custom Color Picker Reset */
+        input[type="color"] {
+            -webkit-appearance: none; border: none; padding: 0;
+            width: 100%; height: 100%;
+            opacity: 0; cursor: pointer;
             position: absolute; top: 0; left: 0;
         }
 
@@ -41,15 +41,15 @@
         .dark { --chart-text: #cbd5e1; --bg-grey-bar: #334155; --sticky-bg: #1e293b; --border-col: #334155; }
 
         /* Sticky Columns */
-        .sticky-col-1 { 
-            position: sticky; left: 0; z-index: 40; 
-            background-color: var(--sticky-bg); 
+        .sticky-col-1 {
+            position: sticky; left: 0; z-index: 40;
+            background-color: var(--sticky-bg);
             width: 40px; min-width: 40px; max-width: 40px;
         }
-        .sticky-col-2 { 
-            position: sticky; left: 40px; z-index: 40; 
-            background-color: var(--sticky-bg); 
-            border-right: 2px solid var(--border-col); 
+        .sticky-col-2 {
+            position: sticky; left: 40px; z-index: 40;
+            background-color: var(--sticky-bg);
+            border-right: 2px solid var(--border-col);
             width: 120px; min-width: 120px; max-width: 120px;
         }
 
@@ -86,7 +86,7 @@
     </div>
 
     <div class="max-w-7xl mx-auto space-y-4">
-        
+
         <div class="flex flex-wrap items-center justify-between gap-2 bg-white dark:bg-slate-800 p-3 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700">
             <div class="flex items-center gap-3">
                 <h1 class="text-lg sm:text-xl font-bold text-blue-600 dark:text-blue-400 whitespace-nowrap">Server Utilisation</h1>
@@ -99,12 +99,12 @@
         </div>
 
         <div class="grid grid-cols-1 gap-4">
-            
+
             <!-- CHART -->
             <div class="bg-white dark:bg-slate-800 p-3 sm:p-4 rounded-lg shadow border border-slate-200 dark:border-slate-700">
                 <h2 class="text-base font-semibold mb-2">Utilization</h2>
                 <div class="bg-slate-50 dark:bg-slate-900/50 p-2 rounded border-l-4 border-blue-500 text-xs sm:text-sm text-slate-600 dark:text-slate-400 mb-3">
-                    <span class="inline-block w-3 h-3 bg-slate-200 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 mr-1 align-middle"></span> 
+                    <span class="inline-block w-3 h-3 bg-slate-200 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 mr-1 align-middle"></span>
                     <strong>Grey</strong>: Free Space. <strong>Striped Appendage</strong>: Demand Exceeded.<br>
                     <span class="text-red-500 font-bold">*</span> Drag table rows to reorder stack.
                 </div>
@@ -179,7 +179,13 @@
             }, true);
             if (!loadState()) resetDataToDefaults(false);
             applyThemeClass(); refreshUI();
-            if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js?v=' + Date.now()).then(reg => reg.update()).catch(console.error);
+            
+            // Safe service worker registration
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.register('sw.js?v=' + Date.now())
+                    .then(reg => reg.update())
+                    .catch(err => console.log('SW not found or failed, running in standard mode.'));
+            }
         }
 
         async function forceUpdateApp() {
@@ -309,10 +315,10 @@
             saveState(); refreshUI();
         }
         function autoFitInput(input) {
-            input.style.fontSize = '16px'; 
+            input.style.fontSize = '16px';
             if (input.scrollWidth > input.clientWidth) {
                 const ratio = input.clientWidth / input.scrollWidth;
-                const newSize = Math.max(10, Math.floor(16 * ratio)); 
+                const newSize = Math.max(10, Math.floor(16 * ratio));
                 input.style.fontSize = newSize + 'px';
             }
         }
@@ -338,7 +344,7 @@
         let touchDragItem = null;
         function handleTouchStart(e) { touchDragItem = this.closest('tr'); touchDragItem.classList.add('bg-slate-200', 'dark:bg-slate-700', 'opacity-70'); }
         function handleTouchMove(e) {
-            e.preventDefault(); 
+            e.preventDefault();
             const touch = e.touches[0];
             const target = document.elementFromPoint(touch.clientX, touch.clientY);
             const targetRow = target ? target.closest('tr') : null;
@@ -358,46 +364,79 @@
         const inputBase = "autosize-input bg-slate-50 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded px-1 py-1 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-blue-500 focus:outline-none";
         const headerInput = "editable-header font-bold text-center text-slate-700 dark:text-slate-200";
 
+        // Helper to construct elements safely (Prevents XSS)
+        function createEl(tag, className, props = {}) {
+            const el = document.createElement(tag);
+            if(className) el.className = className;
+            Object.entries(props).forEach(([k, v]) => {
+                if (k.startsWith('on')) el.addEventListener(k.substring(2).toLowerCase(), v);
+                else if (k === 'text') el.textContent = v;
+                else if (k === 'html') el.innerHTML = v; // Only use for static icons
+                else el.setAttribute(k, v);
+            });
+            return el;
+        }
+
         function renderCapacityTable() {
             const table = document.getElementById('capacityTable');
-            let theadHtml = `<tr>
-                <th class="p-2 sticky-col-1 z-50"></th>
-                <th class="p-2 sticky-col-2 z-50">Cluster Name</th>`;
-            resLabels.forEach((label, idx) => {
-                theadHtml += `<th class="p-2 min-w-[100px] relative">
-                    <div contenteditable="true" class="${headerInput}" onblur="updateLabel(${idx}, this.innerText)">${label}</div>
-                    <button onclick="removeResource(${idx})" class="absolute top-1 right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs shadow hover:bg-red-600 z-10 font-bold">×</button>
-                </th>`;
-            });
-            theadHtml += `</tr>`;
-            table.querySelector('thead').innerHTML = theadHtml;
+            const thead = table.querySelector('thead');
+            const tbody = table.querySelector('tbody');
+            thead.innerHTML = ''; tbody.innerHTML = '';
 
-            let tbodyHtml = '';
+            // Header
+            const hRow = createEl('tr');
+            hRow.appendChild(createEl('th', 'p-2 sticky-col-1 z-50'));
+            hRow.appendChild(createEl('th', 'p-2 sticky-col-2 z-50', { text: 'Cluster Name' }));
+            
+            resLabels.forEach((label, idx) => {
+                const th = createEl('th', 'p-2 min-w-[100px] relative');
+                const div = createEl('div', headerInput, { text: label, contenteditable: "true", onBlur: (e) => updateLabel(idx, e.target.innerText) });
+                const btn = createEl('button', 'absolute top-1 right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs shadow hover:bg-red-600 z-10 font-bold', { text: '×', onClick: () => removeResource(idx) });
+                th.appendChild(div); th.appendChild(btn);
+                hRow.appendChild(th);
+            });
+            thead.appendChild(hRow);
+
+            // Body
+            const frag = document.createDocumentFragment();
             clusterState.forEach(c => {
-                let row = `
-                    <td class="p-1 sticky-col-1 text-center z-40">
-                        <button onclick="removeCluster('${c.id}')" class="text-red-500 hover:text-red-700 font-bold text-lg">×</button>
-                    </td>
-                    <td class="p-1 sticky-col-2 z-40">
-                        <input type="text" class="${inputBase} font-bold" value="${c.name}" onchange="updateClusterName('${c.id}', this.value)" oninput="autoFitInput(this)">
-                    </td>`;
+                const tr = createEl('tr');
                 
+                // Delete Button
+                const tdDel = createEl('td', 'p-1 sticky-col-1 text-center z-40');
+                tdDel.appendChild(createEl('button', 'text-red-500 hover:text-red-700 font-bold text-lg', { text: '×', onClick: () => removeCluster(c.id) }));
+                tr.appendChild(tdDel);
+
+                // Cluster Name
+                const tdName = createEl('td', 'p-1 sticky-col-2 z-40');
+                const inpName = createEl('input', `${inputBase} font-bold`, { type: 'text', value: c.name, onChange: (e) => updateClusterName(c.id, e.target.value), onInput: (e) => autoFitInput(e.target) });
+                tdName.appendChild(inpName);
+                tr.appendChild(tdName);
+
+                // Resources
                 resKeys.forEach((k, rIdx) => {
                     const stats = getClusterUsageStats(c.id, k);
                     const isErr = stats.exceeded > 0;
-                    const errClass = isErr ? 'input-error' : '';
                     const idUnique = `cfg_${c.id}_${k}`;
-                    row += `<td class="p-1"><input id="${idUnique}" type="number" class="${inputBase} ${errClass}" value="${c[k]}" onchange="updateClusterCap('${c.id}', '${k}', this.value)" min="1" oninput="autoFitInput(this)"></td>`;
-                    if(isErr) { setTimeout(() => { const el = document.getElementById(idUnique); if(el) bindLongPress(el, () => showPopup(getUnifiedWarning(rIdx, c.id))); }, 0); }
+                    const td = createEl('td', 'p-1');
+                    const inp = createEl('input', `${inputBase} ${isErr ? 'input-error' : ''}`, { id: idUnique, type: 'number', value: c[k], min: 1, onChange: (e) => updateClusterCap(c.id, k, e.target.value), onInput: (e) => autoFitInput(e.target) });
+                    td.appendChild(inp);
+                    tr.appendChild(td);
+                    
+                    if(isErr) setTimeout(() => { const el = document.getElementById(idUnique); if(el) bindLongPress(el, () => showPopup(getUnifiedWarning(rIdx, c.id))); }, 0);
                 });
-                tbodyHtml += `<tr>${row}</tr>`;
+                frag.appendChild(tr);
             });
-            table.querySelector('tbody').innerHTML = tbodyHtml;
+            tbody.appendChild(frag);
             setTimeout(() => document.querySelectorAll('.autosize-input').forEach(autoFitInput), 10);
         }
 
         function renderProjectTable() {
             const table = document.getElementById('projectsTable');
+            const thead = table.querySelector('thead');
+            const tbody = document.getElementById('projectRows');
+            thead.innerHTML = ''; tbody.innerHTML = '';
+
             let colsInTrouble = new Set();
             projects.forEach(p => {
                 resKeys.forEach((k, rIdx) => {
@@ -406,21 +445,21 @@
                 });
             });
 
-            let theadHtml = `<tr>
-                <th class="p-2 w-[40px] sticky-col-1 z-50">:::</th>
-                <th class="p-2 w-[120px] sticky-col-2 z-50">Name</th>
-                <th class="p-2 min-w-[30px]">Col</th>
-                <th class="p-2 min-w-[120px]">Assigned</th>`;
-            resLabels.forEach((label, idx) => {
-                const errClass = colsInTrouble.has(idx) ? 'header-error' : '';
-                theadHtml += `<th class="p-2 min-w-[80px] ${errClass} rounded">${label}</th>`;
-            });
-            theadHtml += `<th class="p-2 w-24 text-center">Actions</th></tr>`;
-            table.querySelector('thead').innerHTML = theadHtml;
-
-            const tbody = document.getElementById('projectRows');
-            tbody.innerHTML = '';
+            // Header
+            const hRow = createEl('tr');
+            hRow.appendChild(createEl('th', 'p-2 w-[40px] sticky-col-1 z-50', { text: ':::' }));
+            hRow.appendChild(createEl('th', 'p-2 w-[120px] sticky-col-2 z-50', { text: 'Name' }));
+            hRow.appendChild(createEl('th', 'p-2 min-w-[30px]', { text: 'Col' }));
+            hRow.appendChild(createEl('th', 'p-2 min-w-[120px]', { text: 'Assigned' }));
             
+            resLabels.forEach((label, idx) => {
+                hRow.appendChild(createEl('th', `p-2 min-w-[80px] ${colsInTrouble.has(idx) ? 'header-error' : ''} rounded`, { text: label }));
+            });
+            hRow.appendChild(createEl('th', 'p-2 w-24 text-center', { text: 'Actions' }));
+            thead.appendChild(hRow);
+
+            // Body
+            const frag = document.createDocumentFragment();
             projects.forEach((p, idx) => {
                 let isProjectInTrouble = false;
                 let errorMessages = [];
@@ -432,58 +471,64 @@
                     }
                 });
 
-                const nameErrorClass = isProjectInTrouble ? 'input-error' : '';
+                const tr = createEl('tr', '', { draggable: "true", "data-index": idx });
+                tr.addEventListener('dragstart', handleDragStart);
+                tr.addEventListener('dragover', handleDragOver);
+                tr.addEventListener('dragenter', handleDragEnter);
+                tr.addEventListener('dragleave', handleDragLeave);
+                tr.addEventListener('drop', handleDrop);
+                tr.addEventListener('dragend', handleDragEnd);
+
+                // Handle
+                const tdHandle = createEl('td', 'p-1 text-center sticky-col-1 cursor-grab active:cursor-grabbing text-slate-400 drag-handle z-40', { text: '⠿' });
+                tdHandle.addEventListener('touchstart', handleTouchStart, {passive: false});
+                tdHandle.addEventListener('touchmove', handleTouchMove, {passive: false});
+                tdHandle.addEventListener('touchend', handleTouchEnd);
+                tr.appendChild(tdHandle);
+
+                // Name
                 const nameId = `proj_name_${idx}`;
-                const opts = clusterState.map(c => `<option value="${c.id}" ${c.id === p.clusterId ? 'selected' : ''}>${c.name}</option>`).join('');
-                
-                let row = document.createElement('tr');
-                row.setAttribute('draggable', true);
-                row.setAttribute('data-index', idx);
-                row.addEventListener('dragstart', handleDragStart);
-                row.addEventListener('dragover', handleDragOver);
-                row.addEventListener('dragenter', handleDragEnter);
-                row.addEventListener('dragleave', handleDragLeave);
-                row.addEventListener('drop', handleDrop);
-                row.addEventListener('dragend', handleDragEnd);
+                const tdName = createEl('td', 'p-1 sticky-col-2 z-40');
+                tdName.appendChild(createEl('input', `${inputBase} ${isProjectInTrouble ? 'input-error' : ''}`, { id: nameId, type: 'text', value: p.name, onChange: (e) => updateProj(idx, 'name', e.target.value), onInput: (e) => autoFitInput(e.target) }));
+                tr.appendChild(tdName);
 
-                let handleCell = document.createElement('td');
-                handleCell.className = "p-1 text-center sticky-col-1 cursor-grab active:cursor-grabbing text-slate-400 drag-handle z-40";
-                handleCell.innerText = "⠿";
-                handleCell.addEventListener('touchstart', handleTouchStart, {passive: false});
-                handleCell.addEventListener('touchmove', handleTouchMove, {passive: false});
-                handleCell.addEventListener('touchend', handleTouchEnd);
-                row.appendChild(handleCell);
+                // Color
+                const tdCol = createEl('td', 'p-1 text-center');
+                const divCol = createEl('div', 'w-6 h-6 mx-auto rounded overflow-hidden relative');
+                divCol.appendChild(createEl('div', 'absolute inset-0', { style: `background-color:${p.color}` }));
+                divCol.appendChild(createEl('input', '', { type: 'color', value: p.color, onChange: (e) => updateProj(idx, 'color', e.target.value) }));
+                tdCol.appendChild(divCol);
+                tr.appendChild(tdCol);
 
-                let innerHTML = `
-                    <td class="p-1 sticky-col-2 z-40"><input id="${nameId}" type="text" class="${inputBase} ${nameErrorClass}" value="${p.name}" onchange="updateProj(${idx}, 'name', this.value)" oninput="autoFitInput(this)"></td>
-                    <td class="p-1 text-center">
-                        <div class="w-6 h-6 mx-auto rounded overflow-hidden relative">
-                            <div class="absolute inset-0" style="background-color:${p.color}"></div>
-                            <input type="color" value="${p.color}" onchange="updateProj(${idx}, 'color', this.value)">
-                        </div>
-                    </td>
-                    <td class="p-1"><select class="${inputBase}" onchange="updateProj(${idx}, 'clusterId', this.value)">${opts}</select></td>`;
-                
-                resKeys.forEach((k, rIdx) => {
-                    const stats = getClusterUsageStats(p.clusterId, k);
-                    const isErr = stats.exceeded > 0 && (parseFloat(p[k]) > 0);
-                    // Removed 'input-error' from here as per request (only header and name highlight)
-                    const cellId = `proj_${idx}_${k}`;
-                    innerHTML += `<td class="p-1"><input id="${cellId}" type="number" class="${inputBase}" value="${p[k]}" onchange="updateProj(${idx}, '${k}', this.value)" min="0" oninput="autoFitInput(this)"></td>`;
+                // Cluster Select
+                const tdSel = createEl('td', 'p-1');
+                const sel = createEl('select', inputBase, { onChange: (e) => updateProj(idx, 'clusterId', e.target.value) });
+                clusterState.forEach(c => {
+                    const opt = document.createElement('option');
+                    opt.value = c.id; opt.textContent = c.name;
+                    if(c.id === p.clusterId) opt.selected = true;
+                    sel.appendChild(opt);
                 });
-                
-                innerHTML += `<td class="p-1 text-center flex justify-center gap-1">
-                    <button class="bg-amber-500 text-white p-1.5 rounded hover:bg-amber-600 shadow" onclick="duplicateProj(${idx})"><svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button>
-                    <button class="bg-red-500 text-white p-1.5 rounded hover:bg-red-600 shadow" onclick="removeProj(${idx})"><svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
-                </td>`;
-                
-                const tempDiv = document.createElement('tr');
-                tempDiv.innerHTML = innerHTML;
-                while (tempDiv.firstChild) row.appendChild(tempDiv.firstChild);
+                tdSel.appendChild(sel);
+                tr.appendChild(tdSel);
+
+                // Resources
+                resKeys.forEach(k => {
+                    const tdRes = createEl('td', 'p-1');
+                    tdRes.appendChild(createEl('input', inputBase, { type: 'number', value: p[k], min: 0, onChange: (e) => updateProj(idx, k, e.target.value), onInput: (e) => autoFitInput(e.target) }));
+                    tr.appendChild(tdRes);
+                });
+
+                // Actions
+                const tdAct = createEl('td', 'p-1 text-center flex justify-center gap-1');
+                tdAct.appendChild(createEl('button', 'bg-amber-500 text-white p-1.5 rounded hover:bg-amber-600 shadow', { html: '<svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>', onClick: () => duplicateProj(idx) }));
+                tdAct.appendChild(createEl('button', 'bg-red-500 text-white p-1.5 rounded hover:bg-red-600 shadow', { html: '<svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>', onClick: () => removeProj(idx) }));
+                tr.appendChild(tdAct);
 
                 if(isProjectInTrouble) { setTimeout(() => { const el = document.getElementById(nameId); if(el) bindLongPress(el, () => showPopup(errorMessages[0])); }, 0); }
-                tbody.appendChild(row);
+                frag.appendChild(tr);
             });
+            tbody.appendChild(frag);
             setTimeout(() => document.querySelectorAll('.autosize-input').forEach(autoFitInput), 10);
         }
 
@@ -500,7 +545,7 @@
             afterDatasetsDraw(chart) {
                 const ctx = chart.ctx; const xAxis = chart.scales.x; const yAxis = chart.scales.y;
                 const gridColor = localStorage.getItem('theme') === 'dark' ? '#cbd5e1' : '#1e293b';
-                
+
                 // Draw 10-section grid
                 const clusterWidth = xAxis.getPixelForValue(100) - xAxis.getPixelForValue(0);
                 clusterState.forEach((c, i) => {
@@ -509,7 +554,7 @@
                         const x = startX + (clusterWidth * (j/10));
                         ctx.save(); ctx.beginPath(); ctx.moveTo(x, yAxis.top); ctx.lineTo(x, yAxis.bottom);
                         // Make 100% line thicker
-                        ctx.lineWidth = j===10 ? 2 : 0.5; 
+                        ctx.lineWidth = j===10 ? 2 : 0.5;
                         ctx.strokeStyle = j===10 ? gridColor : 'rgba(0,0,0,0.1)';
                         if(localStorage.getItem('theme') === 'dark' && j!==10) ctx.strokeStyle = 'rgba(255,255,255,0.1)';
                         ctx.stroke(); ctx.restore();
@@ -534,25 +579,25 @@
                             const x100 = xAxis.getPixelForValue((cIndex + 1) * 100);
                             const meta = chart.getDatasetMeta(0);
                             const barModel = meta.data[rIndex];
-                            
+
                             if(barModel) {
                                 const y = barModel.y;
                                 const height = barModel.height;
                                 const top = y - height/2;
-                                
+
                                 const rectWidth = 40;
                                 const gap = 5;
                                 const boxX = x100 + gap;
-                                
+
                                 ctx.save();
                                 const pattern = getStripePattern(lastColor);
                                 ctx.fillStyle = pattern;
                                 ctx.fillRect(boxX, top, rectWidth, height);
-                                
+
                                 ctx.strokeStyle = gridColor;
                                 ctx.lineWidth = 1;
                                 ctx.strokeRect(boxX, top, rectWidth, height);
-                                
+
                                 ctx.beginPath();
                                 ctx.moveTo(boxX, top - 2);
                                 ctx.lineTo(boxX, top - 6);
@@ -560,14 +605,14 @@
                                 ctx.lineTo(boxX + rectWidth, top - 2);
                                 ctx.strokeStyle = gridColor;
                                 ctx.stroke();
-                                
+
                                 ctx.fillStyle = gridColor;
                                 ctx.font = 'bold 9px Arial';
                                 ctx.textAlign = 'center';
                                 ctx.textBaseline = 'bottom';
                                 const pct = Math.round((stats.exceeded / stats.capacity) * 100);
                                 ctx.fillText(`Exceeded: ${pct}%`, boxX + rectWidth/2, top - 7);
-                                
+
                                 ctx.restore();
                             }
                         }
@@ -583,7 +628,8 @@
             let offsets = Array(resKeys.length).fill(0).map(() => ({})); clusterState.forEach(c => offsets.forEach(row => row[c.id] = 0));
             let datasets = [];
             const bgBarColor = getCssVar('--bg-grey-bar');
-            
+            const textColor = getCssVar('--chart-text');
+
             clusterState.forEach((c, i) => {
                 datasets.push({
                     label: `_BG_${c.id}`, data: resKeys.map(() => [i*100 + 2, (i*100)+98]),
@@ -601,90 +647,94 @@
                 resKeys.forEach((key, rIdx) => {
                     const pct = (p[key] / (parseFloat(clusterState[cIndex][key])||1)) * 100;
                     const gapOffset = 2;
-                    let start = base + gapOffset + offsets[rIdx][p.clusterId]; 
-                    
-                    // Logic Update: Bars stack normally, but CLAMP at 100%
-                    // If start is already past 100%, draw nothing in main area
+                    let start = base + gapOffset + offsets[rIdx][p.clusterId];
+
                     let visualStart = Math.min(start, base + 98);
                     let visualEnd = Math.min(start + pct, base + 98);
-                    
+
                     if (pct > 0 && visualStart < visualEnd) {
                         pts.push([visualStart, visualEnd]);
                     } else {
                         pts.push(null);
                     }
-                    
+
                     bgColors.push(p.color);
                     usageMap[p.clusterId][rIdx] += pct; offsets[rIdx][p.clusterId] += pct;
                 });
-                
-                datasets.push({ 
+
+                datasets.push({
                     label: p.name, data: pts, backgroundColor: bgColors,
                     barPercentage: 0.8, categoryPercentage: 0.9, grouped: false, order: 1, originalIndex: index,
                 });
             });
 
-            if (myChart) myChart.destroy();
-            const textColor = getCssVar('--chart-text');
-
-            myChart = new Chart(ctx, {
-                type: 'bar',
-                data: { labels: resLabels, datasets: datasets },
-                options: {
-                    indexAxis: 'y', responsive: true, maintainAspectRatio: false,
-                    onClick: (e, elements) => {
-                        // Removed bar click handler since stripes are gone from main bar
-                    },
-                    scales: {
-                        x: { min: 0, max: clusterState.length * 100, stacked: false, grid: { display: false }, ticks: { display: false } },
-                        x2: { position: 'top', min: 0, max: clusterState.length * 100, grid: { display: false }, ticks: { color: textColor, font: { weight: 'bold', size: 12 }, callback: v => {
-                            const cIdx = v / 100 - 0.5;
-                            return (Number.isInteger(cIdx) && clusterState[cIdx]) ? clusterState[cIdx].name : '';
-                        }} },
-                        y: { stacked: false, ticks: { color: textColor, font: {size: 11} } }
-                    },
-                    plugins: {
-                        legend: { 
-                            display: true, position: 'top', 
-                            labels: { 
-                                filter: i => !i.text.startsWith('_BG_'), 
-                                color: textColor,
-                                generateLabels: (chart) => {
-                                    return projects.map((p, i) => ({
-                                        text: p.name, fillStyle: p.color, hidden: hiddenProjectIndices.has(i), index: i, textDecoration: hiddenProjectIndices.has(i) ? 'line-through' : ''
-                                    }));
-                                }
-                            }, 
-                            onClick: (e, legendItem, legend) => {
-                                const idx = legendItem.index;
-                                if(hiddenProjectIndices.has(idx)) hiddenProjectIndices.delete(idx); else hiddenProjectIndices.add(idx);
-                                setTimeout(() => updateChart(), 0);
-                            } 
+            // OPTIMIZATION: Update existing chart instead of destroying it
+            if (myChart) {
+                myChart.data.labels = resLabels;
+                myChart.data.datasets = datasets;
+                myChart.options.scales.x.max = clusterState.length * 100;
+                myChart.options.scales.x2.max = clusterState.length * 100;
+                myChart.options.scales.x2.ticks.color = textColor;
+                myChart.options.scales.y.ticks.color = textColor;
+                myChart.update(); // Smooth transition
+            } else {
+                myChart = new Chart(ctx, {
+                    type: 'bar',
+                    data: { labels: resLabels, datasets: datasets },
+                    options: {
+                        indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+                        onClick: (e, elements) => {},
+                        scales: {
+                            x: { min: 0, max: clusterState.length * 100, stacked: false, grid: { display: false }, ticks: { display: false } },
+                            x2: { position: 'top', min: 0, max: clusterState.length * 100, grid: { display: false }, ticks: { color: textColor, font: { weight: 'bold', size: 12 }, callback: v => {
+                                const cIdx = v / 100 - 0.5;
+                                return (Number.isInteger(cIdx) && clusterState[cIdx]) ? clusterState[cIdx].name : '';
+                            }} },
+                            y: { stacked: false, ticks: { color: textColor, font: {size: 11} } }
                         },
-                        tooltip: {
-                            callbacks: {
-                                label: function(ctx) {
-                                    if (ctx.dataset.label.startsWith('_BG_')) {
-                                        const cId = ctx.dataset.clusterId; const rIdx = ctx.dataIndex; 
-                                        if(!usageMap[cId]) return '';
-                                        const total = clusterState.find(c => c.id === cId)[resKeys[rIdx]];
-                                        const used = usageMap[cId][rIdx]; 
-                                        const freePct = Math.max(0, 100 - used); const freeUnits = (freePct/100)*total;
-                                        return [`Available: ${freePct.toFixed(1)}%`, `${Math.floor(freeUnits)} / ${total}`];
+                        plugins: {
+                            legend: {
+                                display: true, position: 'top',
+                                labels: {
+                                    filter: i => !i.text.startsWith('_BG_'),
+                                    color: textColor,
+                                    generateLabels: (chart) => {
+                                        return projects.map((p, i) => ({
+                                            text: p.name, fillStyle: p.color, hidden: hiddenProjectIndices.has(i), index: i, textDecoration: hiddenProjectIndices.has(i) ? 'line-through' : ''
+                                        }));
                                     }
-                                    const p = projects[ctx.dataset.originalIndex];
-                                    if (!p) return '';
-                                    const val = p[resKeys[ctx.dataIndex]] || 0;
-                                    const cIndex = clusterState.findIndex(c => c.id === p.clusterId);
-                                    const cap = parseFloat(clusterState[cIndex][resKeys[ctx.dataIndex]]) || 1;
-                                    const realPct = (val / cap) * 100;
-                                    return `${ctx.dataset.label}: ${realPct.toFixed(1)}% (${val})`;
+                                },
+                                onClick: (e, legendItem, legend) => {
+                                    const idx = legendItem.index;
+                                    if(hiddenProjectIndices.has(idx)) hiddenProjectIndices.delete(idx); else hiddenProjectIndices.add(idx);
+                                    setTimeout(() => updateChart(), 0);
+                                }
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(ctx) {
+                                        if (ctx.dataset.label.startsWith('_BG_')) {
+                                            const cId = ctx.dataset.clusterId; const rIdx = ctx.dataIndex;
+                                            if(!usageMap[cId]) return '';
+                                            const total = clusterState.find(c => c.id === cId)[resKeys[rIdx]];
+                                            const used = usageMap[cId][rIdx];
+                                            const freePct = Math.max(0, 100 - used); const freeUnits = (freePct/100)*total;
+                                            return [`Available: ${freePct.toFixed(1)}%`, `${Math.floor(freeUnits)} / ${total}`];
+                                        }
+                                        const p = projects[ctx.dataset.originalIndex];
+                                        if (!p) return '';
+                                        const val = p[resKeys[ctx.dataIndex]] || 0;
+                                        const cIndex = clusterState.findIndex(c => c.id === p.clusterId);
+                                        const cap = parseFloat(clusterState[cIndex][resKeys[ctx.dataIndex]]) || 1;
+                                        const realPct = (val / cap) * 100;
+                                        return `${ctx.dataset.label}: ${realPct.toFixed(1)}% (${val})`;
+                                    }
                                 }
                             }
                         }
                     }
-                }
-            });
+                });
+            }
         }
     </script>
 </body>
