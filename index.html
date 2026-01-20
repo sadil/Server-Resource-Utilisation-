@@ -547,9 +547,9 @@
                 const oneUnitPx = (xAxis.getPixelForValue(100) - xAxis.getPixelForValue(0)) / 100;
 
                 clusterState.forEach((c, i) => {
-                    const clusterStartVal = i * CLUSTER_STRIDE;
-                    const startX = xAxis.getPixelForValue(clusterStartVal);
+                    const startX = xAxis.getPixelForValue(i * CLUSTER_STRIDE);
                     
+                    // Draw Cluster Grid
                     for(let j=1; j<=10; j++) {
                         const x = startX + (oneUnitPx * 10 * j);
                         ctx.save(); ctx.beginPath(); ctx.moveTo(x, yAxis.top); ctx.lineTo(x, yAxis.bottom);
@@ -560,12 +560,19 @@
                         ctx.stroke(); ctx.restore();
                     }
 
-                    // 2. Draw Separator Line in the Gap
-                    if (i < clusterState.length - 1) {
-                        const gapMidX = xAxis.getPixelForValue(clusterStartVal + 100 + (GAP_WIDTH / 2));
+                    // 2. Draw Column Separator (Left Border for all, Right Border for last)
+                    // Draw Line at Start of Cluster (Left Edge)
+                    ctx.save(); ctx.beginPath();
+                    ctx.moveTo(startX, yAxis.top); ctx.lineTo(startX, yAxis.bottom);
+                    ctx.lineWidth = 2; ctx.strokeStyle = '#94a3b8'; // Thick column divider
+                    ctx.stroke(); ctx.restore();
+
+                    // If last cluster, draw Right Edge too
+                    if (i === clusterState.length - 1) {
+                        const endX = startX + (oneUnitPx * 100);
                         ctx.save(); ctx.beginPath();
-                        ctx.moveTo(gapMidX, yAxis.top); ctx.lineTo(gapMidX, yAxis.bottom);
-                        ctx.lineWidth = 2; ctx.strokeStyle = '#94a3b8'; // Neutral grey separator
+                        ctx.moveTo(endX, yAxis.top); ctx.lineTo(endX, yAxis.bottom);
+                        ctx.lineWidth = 2; ctx.strokeStyle = '#94a3b8';
                         ctx.stroke(); ctx.restore();
                     }
                 });
@@ -586,9 +593,10 @@
                             }
 
                             // Position box at 100% mark of this cluster
+                            // The gap starts at 100 units.
                             const clusterEndVal = (cIndex * CLUSTER_STRIDE) + 100;
                             const xStartPx = xAxis.getPixelForValue(clusterEndVal);
-                            const widthPx = oneUnitPx * (GAP_WIDTH - 5); // Use most of the gap width
+                            const widthPx = oneUnitPx * (GAP_WIDTH - 5); 
                             
                             const meta = chart.getDatasetMeta(0);
                             const barModel = meta.data[rIndex];
@@ -604,12 +612,12 @@
 
                                 ctx.save();
                                 
-                                // Draw Stripes Manually (fixes Black Box issue)
+                                // Draw Stripes Manually
                                 ctx.beginPath();
                                 ctx.rect(boxX, top, boxW, height);
-                                ctx.clip(); // Clip drawing to the box area
+                                ctx.clip();
 
-                                // Background for contrast
+                                // Background
                                 ctx.fillStyle = localStorage.getItem('theme') === 'dark' ? '#1e293b' : '#ffffff';
                                 ctx.fill();
 
@@ -623,8 +631,7 @@
                                     ctx.stroke();
                                 }
 
-                                // Border
-                                ctx.restore(); // Remove clip
+                                ctx.restore();
                                 ctx.strokeStyle = gridColor;
                                 ctx.lineWidth = 1;
                                 ctx.strokeRect(boxX, top, boxW, height);
@@ -685,19 +692,15 @@
                     const usedUnits = p[key];
                     const pct = (usedUnits / totalCap) * 100;
                     
-                    // Current start position relative to cluster 0-100
                     let currentOffset = offsets[rIdx][p.clusterId];
                     let startVal = clusterBase + currentOffset;
                     
-                    // Clamp visual bar to 100% max
                     let visualStart = startVal;
                     let visualEnd = startVal + pct;
                     
-                    // If start is beyond 100%, don't draw (handled by appendage)
                     if (currentOffset >= 100) {
                         pts.push(null);
                     } else {
-                        // If end goes beyond 100%, clamp it
                         if (visualEnd > clusterBase + 100) {
                             visualEnd = clusterBase + 100;
                         }
@@ -720,10 +723,8 @@
                 });
             });
 
-            // Calculate Scale Max
             const maxX = clusterState.length * CLUSTER_STRIDE;
 
-            // Update or Create Chart
             if (myChart) {
                 myChart.data.labels = resLabels;
                 myChart.data.datasets = datasets;
@@ -742,8 +743,6 @@
                         scales: {
                             x: { min: 0, max: maxX, stacked: false, grid: { display: false }, ticks: { display: false } },
                             x2: { position: 'top', min: 0, max: maxX, grid: { display: false }, ticks: { color: textColor, font: { weight: 'bold', size: 12 }, callback: v => {
-                                // Find which cluster this value belongs to
-                                // Center of cluster i is: (i * STRIDE) + (WIDTH / 2)
                                 for(let i=0; i<clusterState.length; i++) {
                                     const center = (i * CLUSTER_STRIDE) + (CLUSTER_WIDTH / 2);
                                     if (Math.abs(v - center) < 5) return clusterState[i].name;
