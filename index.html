@@ -29,24 +29,15 @@
         input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
         input[type=number] { -moz-appearance: textfield; }
         input[type="color"] { -webkit-appearance: none; border: none; padding: 0; width: 24px; height: 24px; border-radius: 4px; overflow: hidden; cursor: pointer; background: none; }
-        
-        :root { --chart-text: #334155; --bg-grey-bar: #e2e8f0; --sticky-bg: #ffffff; --border-col: #e2e8f0; }
+        input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; border: none; }
+        input[type="color"]::-webkit-color-swatch { border: none; border-radius: 4px; padding: 0; }
+
+        :root { --chart-text: #334155; --bg-grey-bar: #f1f5f9; --sticky-bg: #ffffff; --border-col: #e2e8f0; }
         .dark { --chart-text: #cbd5e1; --bg-grey-bar: #334155; --sticky-bg: #1e293b; --border-col: #334155; }
 
-        /* FIXED STICKY COLUMNS */
-        /* Column 1: Width 40px */
-        .sticky-col-1 { 
-            position: sticky; left: 0; z-index: 40; 
-            background-color: var(--sticky-bg); 
-            width: 40px; min-width: 40px; max-width: 40px;
-        }
-        /* Column 2: Width 120px, starts at 40px */
-        .sticky-col-2 { 
-            position: sticky; left: 40px; z-index: 40; 
-            background-color: var(--sticky-bg); 
-            border-right: 2px solid var(--border-col); 
-            width: 120px; min-width: 120px; max-width: 120px;
-        }
+        /* Sticky Columns */
+        .sticky-col-1 { position: sticky; left: 0; z-index: 30; background-color: var(--sticky-bg); width: 40px; min-width: 40px; }
+        .sticky-col-2 { position: sticky; left: 40px; z-index: 30; background-color: var(--sticky-bg); border-right: 2px solid var(--border-col); width: 120px; min-width: 120px; }
 
         /* Error State */
         .input-error { border: 2px solid #ef4444 !important; background-color: #fef2f2 !important; color: #b91c1c !important; }
@@ -60,9 +51,8 @@
         .autosize-input { width: 100%; white-space: nowrap; overflow: hidden; transition: font-size 0.1s; }
 
         /* Drag Handle */
-        .drag-handle { cursor: grab; touch-action: none; /* Crucial for touch drag */ }
+        .drag-handle { cursor: grab; touch-action: none; }
         .drag-handle:active { cursor: grabbing; }
-        .dragging-row { opacity: 0.5; background: #cbd5e1; }
 
         /* Popups */
         #custom-popup { z-index: 9999; transition: opacity 0.3s, transform 0.3s; }
@@ -74,7 +64,6 @@
 
     <div id="error-log" class="hidden bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert"></div>
 
-    <!-- POPUP -->
     <div id="custom-popup" class="hidden-popup fixed top-6 left-1/2 w-[90%] max-w-md bg-white dark:bg-slate-800 border-l-4 border-red-500 shadow-2xl rounded p-4 text-sm sm:text-base">
         <div class="flex justify-between items-start">
             <div id="popup-content" class="text-slate-800 dark:text-slate-200 whitespace-pre-wrap font-medium"></div>
@@ -85,7 +74,6 @@
 
     <div class="max-w-7xl mx-auto space-y-4">
         
-        <!-- HEADER -->
         <div class="flex flex-wrap items-center justify-between gap-2 bg-white dark:bg-slate-800 p-3 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700">
             <div class="flex items-center gap-3">
                 <h1 class="text-lg sm:text-xl font-bold text-blue-600 dark:text-blue-400 whitespace-nowrap">Server Utilisation</h1>
@@ -97,7 +85,6 @@
             <button id="btnTheme" class="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-600 transition"><span class="text-xl">🌗</span></button>
         </div>
 
-        <!-- MAIN GRID -->
         <div class="grid grid-cols-1 gap-4">
             
             <!-- CHART -->
@@ -105,15 +92,15 @@
                 <h2 class="text-base font-semibold mb-2">Utilization</h2>
                 <div class="bg-slate-50 dark:bg-slate-900/50 p-2 rounded border-l-4 border-blue-500 text-xs sm:text-sm text-slate-600 dark:text-slate-400 mb-3">
                     <span class="inline-block w-3 h-3 bg-slate-200 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 mr-1 align-middle"></span> 
-                    <strong>Grey</strong>: Free Space. <strong>Striped</strong>: Limit Exceeded.<br>
+                    <strong>Grey</strong>: Free Space. <strong>Striped Box</strong>: Demand Exceeded.<br>
                     <span class="text-red-500 font-bold">*</span> Drag table rows to reorder.
                 </div>
-                <div class="relative h-[500px] w-full">
+                <div class="relative h-[600px] w-full">
                     <canvas id="utilizationChart"></canvas>
                 </div>
             </div>
 
-            <!-- CONFIG TABLE -->
+            <!-- CONFIG -->
             <div class="bg-white dark:bg-slate-800 p-3 sm:p-4 rounded-lg shadow border border-slate-200 dark:border-slate-700">
                 <div class="flex justify-between items-center mb-2">
                     <h2 class="text-base font-semibold">1. Configuration</h2>
@@ -130,7 +117,7 @@
                 </div>
             </div>
 
-            <!-- PROJECTS TABLE -->
+            <!-- PROJECTS -->
             <div class="bg-white dark:bg-slate-800 p-3 sm:p-4 rounded-lg shadow border border-slate-200 dark:border-slate-700">
                 <div class="flex justify-between items-center mb-2">
                     <h2 class="text-base font-semibold">2. Project Workloads</h2>
@@ -168,7 +155,6 @@
 
         function initApp() {
             if (typeof Chart === 'undefined') return alert("Chart.js failed");
-            
             document.getElementById('btnUpdate').addEventListener('click', forceUpdateApp);
             document.getElementById('btnReset').addEventListener('click', resetDefaults);
             document.getElementById('btnTheme').addEventListener('click', toggleTheme);
@@ -178,10 +164,8 @@
                 const popup = document.getElementById('custom-popup');
                 if (popup.classList.contains('visible-popup') && !popup.contains(e.target)) hidePopup();
             }, true);
-
             if (!loadState()) resetDataToDefaults(false);
-            applyThemeClass();
-            refreshUI();
+            applyThemeClass(); refreshUI();
             if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js?v=' + Date.now()).then(reg => reg.update()).catch(console.error);
         }
 
@@ -202,7 +186,7 @@
 
         function loadState() {
             try {
-                const stored = localStorage.getItem('serverDashboardData_v17');
+                const stored = localStorage.getItem('serverDashboardData_v18');
                 if (!stored) return false;
                 const data = JSON.parse(stored);
                 if (!data.clusters || !data.projects) return false;
@@ -214,7 +198,7 @@
         }
         function saveState() {
             const data = { clusters: clusterState, projects: projects, labels: resLabels, keys: resKeys, theme: localStorage.getItem('theme') || 'light' };
-            localStorage.setItem('serverDashboardData_v17', JSON.stringify(data));
+            localStorage.setItem('serverDashboardData_v18', JSON.stringify(data));
         }
 
         function toggleTheme() {
@@ -261,6 +245,7 @@
             return { used: totalUsed, capacity: capacity, exceeded: Math.max(0, totalUsed - capacity) };
         }
 
+        // --- Data Mods ---
         window.addNewResource = function() {
             const name = prompt("Enter Name for new Resource:");
             if(!name) return;
@@ -282,13 +267,8 @@
         window.removeCluster = function(id) {
             if(clusterState.length <= 1) return alert("Cannot delete the last cluster.");
             if(!confirm("Delete this cluster? Projects assigned to it will be moved to the first available cluster.")) return;
-            
-            // Reassign projects to first available cluster that isn't the deleted one
             const targetCluster = clusterState.find(c => c.id !== id);
-            projects.forEach(p => {
-                if(p.clusterId === id) p.clusterId = targetCluster.id;
-            });
-            
+            projects.forEach(p => { if(p.clusterId === id) p.clusterId = targetCluster.id; });
             clusterState = clusterState.filter(c => c.id !== id);
             saveState(); refreshUI();
         }
@@ -325,7 +305,7 @@
             }
         }
 
-        // --- DRAG HANDLERS (TOUCH & MOUSE) ---
+        // --- Drag Handlers (Touch & Mouse) ---
         function handleDragStart(e) { dragSrcEl = this; e.dataTransfer.effectAllowed = 'move'; this.classList.add('opacity-50'); }
         function handleDragOver(e) { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; return false; }
         function handleDragEnter(e) { this.classList.add('bg-slate-200', 'dark:bg-slate-700'); }
@@ -343,48 +323,25 @@
         }
         function handleDragEnd(e) { this.classList.remove('opacity-50'); document.querySelectorAll('#projectRows tr').forEach(row => row.classList.remove('bg-slate-200', 'dark:bg-slate-700')); }
 
-        // TOUCH DRAG IMPLEMENTATION
         let touchDragItem = null;
-        let touchStartY = 0;
-        
-        function handleTouchStart(e) {
-            touchDragItem = this.closest('tr');
-            touchStartY = e.touches[0].clientY;
-            touchDragItem.classList.add('bg-slate-200', 'dark:bg-slate-700', 'opacity-70');
-        }
+        function handleTouchStart(e) { touchDragItem = this.closest('tr'); touchDragItem.classList.add('bg-slate-200', 'dark:bg-slate-700', 'opacity-70'); }
         function handleTouchMove(e) {
-            e.preventDefault(); // Stop scroll
+            e.preventDefault(); 
             const touch = e.touches[0];
             const target = document.elementFromPoint(touch.clientX, touch.clientY);
             const targetRow = target ? target.closest('tr') : null;
-            
             if (targetRow && targetRow !== touchDragItem && targetRow.parentElement === touchDragItem.parentElement) {
-                // Visual swap logic (simplified: actual swap happens on end, visually we just move DOM)
-                // For simplicity in vanilla JS without animation libs, we perform the swap immediately if threshold crossed
                 const srcIdx = parseInt(touchDragItem.getAttribute('data-index'));
                 const targetIdx = parseInt(targetRow.getAttribute('data-index'));
-                
-                // Swap in data
                 const item = projects.splice(srcIdx, 1)[0];
                 projects.splice(targetIdx, 0, item);
-                
-                // Re-render immediately to reflect change (can be jerky, but works for functionality)
-                saveState(); 
-                renderProjectTable(); 
-                updateChart();
-                
-                // Re-acquire reference after render
+                saveState(); renderProjectTable(); updateChart();
                 const rows = document.querySelectorAll('#projectRows tr');
                 touchDragItem = rows[targetIdx];
                 touchDragItem.classList.add('bg-slate-200', 'dark:bg-slate-700', 'opacity-70');
             }
         }
-        function handleTouchEnd(e) {
-            if(touchDragItem) {
-                touchDragItem.classList.remove('bg-slate-200', 'dark:bg-slate-700', 'opacity-70');
-                touchDragItem = null;
-            }
-        }
+        function handleTouchEnd(e) { if(touchDragItem) { touchDragItem.classList.remove('bg-slate-200', 'dark:bg-slate-700', 'opacity-70'); touchDragItem = null; } }
 
         const inputBase = "autosize-input bg-slate-50 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded px-1 py-1 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-blue-500 focus:outline-none";
         const headerInput = "editable-header font-bold text-center text-slate-700 dark:text-slate-200";
@@ -392,8 +349,8 @@
         function renderCapacityTable() {
             const table = document.getElementById('capacityTable');
             let theadHtml = `<tr>
-                <th class="p-2 sticky-col-1 w-[40px] z-50"></th>
-                <th class="p-2 sticky-col-2 w-[120px] z-50">Cluster Name</th>`;
+                <th class="p-2 sticky-col-1 z-50"></th>
+                <th class="p-2 sticky-col-2 z-50">Cluster Name</th>`;
             resLabels.forEach((label, idx) => {
                 theadHtml += `<th class="p-2 min-w-[100px] relative">
                     <div contenteditable="true" class="${headerInput}" onblur="updateLabel(${idx}, this.innerText)">${label}</div>
@@ -405,7 +362,6 @@
 
             let tbodyHtml = '';
             clusterState.forEach(c => {
-                // Added Delete Button for Cluster
                 let row = `
                     <td class="p-1 sticky-col-1 text-center z-40">
                         <button onclick="removeCluster('${c.id}')" class="text-red-500 hover:text-red-700 font-bold text-lg">×</button>
@@ -471,7 +427,6 @@
                 let row = document.createElement('tr');
                 row.setAttribute('draggable', true);
                 row.setAttribute('data-index', idx);
-                // Mouse Drag
                 row.addEventListener('dragstart', handleDragStart);
                 row.addEventListener('dragover', handleDragOver);
                 row.addEventListener('dragenter', handleDragEnter);
@@ -482,7 +437,6 @@
                 let handleCell = document.createElement('td');
                 handleCell.className = "p-1 text-center sticky-col-1 cursor-grab active:cursor-grabbing text-slate-400 drag-handle z-40";
                 handleCell.innerText = "⠿";
-                // Touch Drag Binding
                 handleCell.addEventListener('touchstart', handleTouchStart, {passive: false});
                 handleCell.addEventListener('touchmove', handleTouchMove, {passive: false});
                 handleCell.addEventListener('touchend', handleTouchEnd);
@@ -507,8 +461,6 @@
                     <button class="bg-red-500 text-white p-1.5 rounded hover:bg-red-600 shadow" onclick="removeProj(${idx})"><svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
                 </td>`;
                 
-                // Append remaining HTML
-                // We create a temp div to parse string to nodes
                 const tempDiv = document.createElement('tr');
                 tempDiv.innerHTML = innerHTML;
                 while (tempDiv.firstChild) row.appendChild(tempDiv.firstChild);
@@ -532,15 +484,97 @@
             afterDatasetsDraw(chart) {
                 const ctx = chart.ctx; const xAxis = chart.scales.x; const yAxis = chart.scales.y;
                 const gridColor = localStorage.getItem('theme') === 'dark' ? '#cbd5e1' : '#1e293b';
+                
+                // Draw 10-section grid
                 const clusterWidth = xAxis.getPixelForValue(100) - xAxis.getPixelForValue(0);
                 clusterState.forEach((c, i) => {
                     const startX = xAxis.getPixelForValue(i * 100);
                     for(let j=1; j<=10; j++) {
                         const x = startX + (clusterWidth * (j/10));
                         ctx.save(); ctx.beginPath(); ctx.moveTo(x, yAxis.top); ctx.lineTo(x, yAxis.bottom);
-                        ctx.lineWidth = j===10 ? 3 : 1; ctx.strokeStyle = j===10 ? gridColor : 'rgba(0,0,0,0.2)';
+                        // Make 100% line thicker
+                        ctx.lineWidth = j===10 ? 2 : 0.5; 
+                        ctx.strokeStyle = j===10 ? gridColor : 'rgba(0,0,0,0.1)';
+                        if(localStorage.getItem('theme') === 'dark' && j!==10) ctx.strokeStyle = 'rgba(255,255,255,0.1)';
                         ctx.stroke(); ctx.restore();
                     }
+                });
+
+                // DRAW VISUAL OVERFLOW APPENDAGE
+                // We iterate through datasets to find overloads
+                const datasets = chart.data.datasets;
+                // We need to group by row (resource) + cluster
+                // Chart.js stacks horizontally.
+                // We will manually calculate overloads here for rendering the appendage
+                
+                // For each cluster, for each resource row
+                clusterState.forEach((c, cIndex) => {
+                    resKeys.forEach((key, rIndex) => {
+                        const stats = getClusterUsageStats(c.id, key);
+                        if (stats.exceeded > 0) {
+                            // Determine last contributing project's color
+                            let lastColor = '#000';
+                            // Iterate backwards
+                            for(let pIdx = projects.length - 1; pIdx >= 0; pIdx--) {
+                                const p = projects[pIdx];
+                                if (p.clusterId === c.id && parseFloat(p[key]) > 0 && !hiddenProjectIndices.has(pIdx)) {
+                                    lastColor = p.color;
+                                    break;
+                                }
+                            }
+
+                            // Calculate Coordinates
+                            // X position of 100% line for this cluster
+                            const x100 = xAxis.getPixelForValue((cIndex + 1) * 100);
+                            
+                            // Y Position: We need the specific bar's Y.
+                            // We can get this from any visible dataset meta for this index
+                            const meta = chart.getDatasetMeta(0); // Start with first, check visibility
+                            // But data is stacked. All bars in a row share the same Y center/height.
+                            const barModel = meta.data[rIndex];
+                            
+                            if(barModel) {
+                                const y = barModel.y;
+                                const height = barModel.height;
+                                const top = y - height/2;
+                                
+                                // Draw Appendage (Arbitrary rectangle 40px wide)
+                                const rectWidth = 40;
+                                const gap = 5;
+                                const boxX = x100 + gap;
+                                
+                                ctx.save();
+                                // Fill with stripe pattern of last color
+                                const pattern = getStripePattern(lastColor);
+                                ctx.fillStyle = pattern;
+                                ctx.fillRect(boxX, top, rectWidth, height);
+                                
+                                // Border
+                                ctx.strokeStyle = gridColor;
+                                ctx.lineWidth = 1;
+                                ctx.strokeRect(boxX, top, rectWidth, height);
+                                
+                                // Draw Bracket Line
+                                ctx.beginPath();
+                                ctx.moveTo(boxX, top - 2);
+                                ctx.lineTo(boxX, top - 6);
+                                ctx.lineTo(boxX + rectWidth, top - 6);
+                                ctx.lineTo(boxX + rectWidth, top - 2);
+                                ctx.strokeStyle = gridColor;
+                                ctx.stroke();
+                                
+                                // Draw Text
+                                ctx.fillStyle = gridColor;
+                                ctx.font = 'bold 10px Arial';
+                                ctx.textAlign = 'center';
+                                ctx.textBaseline = 'bottom';
+                                const pct = Math.round((stats.exceeded / stats.capacity) * 100);
+                                ctx.fillText(`Exceeded: ${pct}%`, boxX + rectWidth/2, top - 8);
+                                
+                                ctx.restore();
+                            }
+                        }
+                    });
                 });
             }
         };
@@ -563,6 +597,7 @@
             projects.forEach((p, index) => {
                 if(hiddenProjectIndices.has(index)) return;
                 if(!usageMap[p.clusterId]) return;
+                
                 let pts = []; let bgColors = [];
                 const cIndex = clusterState.findIndex(c => c.id === p.clusterId);
                 const base = cIndex * 100;
@@ -572,12 +607,16 @@
                     const gapOffset = 2;
                     let start = base + gapOffset + offsets[rIdx][p.clusterId]; 
                     let end = start + pct;
-                    let isOverloaded = false;
-                    if(end > base + 98) { end = base + 98; isOverloaded = true; }
+                    
+                    // Clamp visual bar at 98% (visual 100%)
+                    if(end > base + 98) { end = base + 98; }
+
                     if (pct > 0 && start < end) pts.push([start, end]);
-                    else if (isOverloaded && start < (base + 98)) pts.push([start, base+98]);
+                    else if (pct > 0 && start >= end) pts.push([start, base+98]); // Draw full if overflowing
                     else pts.push(null);
-                    bgColors.push(isOverloaded ? ctx.createPattern(getStripePattern(p.color), 'repeat') : p.color);
+                    
+                    // Solid colors for main bars
+                    bgColors.push(p.color);
                     usageMap[p.clusterId][rIdx] += pct; offsets[rIdx][p.clusterId] += pct;
                 });
                 
@@ -609,7 +648,11 @@
                         }
                     },
                     scales: {
-                        x: { min: 0, max: clusterState.length * 100, stacked: false, grid: { display: false }, ticks: { display: false } },
+                        x: { 
+                            min: 0, max: clusterState.length * 100, 
+                            stacked: false, grid: { display: false }, 
+                            ticks: { display: false } 
+                        },
                         x2: { position: 'top', min: 0, max: clusterState.length * 100, grid: { display: false }, ticks: { color: textColor, font: { weight: 'bold', size: 12 }, callback: v => {
                             const cIdx = v / 100 - 0.5;
                             return (Number.isInteger(cIdx) && clusterState[cIdx]) ? clusterState[cIdx].name : '';
@@ -620,7 +663,8 @@
                         legend: { 
                             display: true, position: 'top', 
                             labels: { 
-                                filter: i => !i.text.startsWith('_BG_'), color: textColor,
+                                filter: i => !i.text.startsWith('_BG_'), 
+                                color: textColor,
                                 generateLabels: (chart) => {
                                     return projects.map((p, i) => ({
                                         text: p.name, fillStyle: p.color, hidden: hiddenProjectIndices.has(i), index: i, textDecoration: hiddenProjectIndices.has(i) ? 'line-through' : ''
