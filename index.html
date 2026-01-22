@@ -37,17 +37,38 @@
             position: absolute; top: 0; left: 0;
         }
 
-        :root { --chart-text: #334155; --bg-grey-bar: #e2e8f0; --sticky-bg: #ffffff; --border-col: #e2e8f0; }
+        :root { --chart-text: #334155; --bg-grey-bar: #e2e8f0; --sticky-bg: #ffffff; --border-col: #cbd5e1; }
         .dark { --chart-text: #cbd5e1; --bg-grey-bar: #334155; --sticky-bg: #1e293b; --border-col: #334155; }
 
-        /* Sticky Columns - Compact Widths */
-        .sticky-col-1 {
+        /* --- STICKY COLUMN SYSTEM --- */
+        
+        /* 1. Drag Handle */
+        .sticky-left-1 {
             position: sticky; left: 0; z-index: 40;
+            width: 30px; min-width: 30px; max-width: 30px;
             background-color: var(--sticky-bg);
             border-right: 1px solid #f1f5f9;
         }
-        .sticky-col-2 {
-            position: sticky; left: 30px; z-index: 40; /* Adjust based on col-1 width */
+
+        /* 2. Duplicate Icon (Projects only) or Cluster Name Start */
+        .sticky-left-2 {
+            position: sticky; left: 30px; z-index: 40;
+            width: 24px; min-width: 24px; max-width: 24px;
+            background-color: var(--sticky-bg);
+        }
+
+        /* 3. Name Field */
+        .sticky-left-3 {
+            position: sticky; left: 54px; z-index: 40; /* 30 + 24 */
+            width: 110px; min-width: 110px; max-width: 110px;
+            background-color: var(--sticky-bg);
+            border-right: 2px solid var(--border-col);
+        }
+
+        /* Cluster Table Specific Stickiness (Only has Handle + Name) */
+        .cluster-sticky-name {
+            position: sticky; left: 30px; z-index: 40;
+            width: 134px; min-width: 134px; /* Covers the space of Dup+Name */
             background-color: var(--sticky-bg);
             border-right: 2px solid var(--border-col);
         }
@@ -62,12 +83,8 @@
         .editable-header { min-width: 50px; outline: none; cursor: text; display: block; padding-right: 18px; font-size: 0.7rem; line-height: 0.9rem; }
         .autosize-input { width: 100%; white-space: nowrap; overflow: hidden; transition: font-size 0.1s; }
 
-        /* Drag Handle - Improved for Touch */
-        .drag-handle { 
-            cursor: grab; 
-            touch-action: none; /* Prevents scrolling while dragging */
-            padding: 10px 0; /* Increase touch target */
-        }
+        /* Drag Handle */
+        .drag-handle { cursor: grab; touch-action: none; padding: 12px 0; }
         .drag-handle:active { cursor: grabbing; }
 
         /* Overlays for Inputs */
@@ -342,7 +359,6 @@
             dragSrcEl = this; 
             e.dataTransfer.effectAllowed = 'move'; 
             this.classList.add('opacity-50'); 
-            // Check if it's cluster or project based on id
             this.dataset.type = this.closest('tbody').id === 'clusterRows' ? 'cluster' : 'project';
         }
         function handleDragOver(e) { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; return false; }
@@ -388,7 +404,7 @@
             const targetRow = target ? target.closest('tr') : null;
             
             if (targetRow && targetRow !== touchDragItem && targetRow.parentElement === touchDragItem.parentElement) {
-                e.preventDefault(); // Prevent scroll only when valid drag target found
+                e.preventDefault(); 
                 const srcIdx = parseInt(touchDragItem.getAttribute('data-index'));
                 const targetIdx = parseInt(targetRow.getAttribute('data-index'));
                 const type = touchDragItem.dataset.type;
@@ -404,7 +420,6 @@
                 }
                 saveState(); updateChart();
                 
-                // Re-acquire reference after render
                 const rows = document.getElementById(type === 'project' ? 'projectRows' : 'clusterRows').children;
                 touchDragItem = rows[targetIdx];
                 touchDragItem.classList.add('bg-slate-200', 'dark:bg-slate-700', 'opacity-70');
@@ -432,8 +447,8 @@
 
         // Shared Drag Handle Creator
         function createDragHandle() {
-            const td = createEl('td', 'p-1 text-center sticky-col-1 z-40');
-            const span = createEl('div', 'drag-handle text-slate-400 text-sm', { text: '::' }); // Increased size and padding in CSS
+            const td = createEl('td', 'p-1 text-center sticky-left-1 z-40');
+            const span = createEl('div', 'drag-handle text-slate-400 text-sm', { text: '::' }); 
             span.addEventListener('touchstart', handleTouchStart, {passive: false});
             span.addEventListener('touchmove', handleTouchMove, {passive: false});
             span.addEventListener('touchend', handleTouchEnd);
@@ -444,13 +459,14 @@
         function renderCapacityTable() {
             const table = document.getElementById('capacityTable');
             const thead = table.querySelector('thead');
-            const tbody = document.getElementById('clusterRows'); // Use specific ID
+            const tbody = document.getElementById('clusterRows');
             thead.innerHTML = ''; tbody.innerHTML = '';
 
             // Header
             const hRow = createEl('tr');
-            hRow.appendChild(createEl('th', 'p-1 w-[30px] sticky-col-1 z-50'));
-            hRow.appendChild(createEl('th', 'p-1 w-[110px] sticky-col-2 z-50 text-[10px] uppercase text-slate-500', { text: 'Cluster' }));
+            hRow.appendChild(createEl('th', 'p-1 w-[30px] sticky-left-1 z-50'));
+            // Cluster name header spans the width of sticky-2 (dup) and sticky-3 (name)
+            hRow.appendChild(createEl('th', 'p-1 w-[134px] cluster-sticky-name z-50 text-[10px] uppercase text-slate-500', { text: 'Cluster' }));
             
             resLabels.forEach((label, idx) => {
                 const th = createEl('th', 'p-1 min-w-[70px] relative');
@@ -475,9 +491,10 @@
                 // Drag Handle
                 tr.appendChild(createDragHandle());
 
-                // Cluster Name + Overlay Delete
-                const tdName = createEl('td', 'p-1 sticky-col-2 z-40');
+                // Cluster Name + Overlay Delete (Spanning the Sticky Name area)
+                const tdName = createEl('td', 'p-1 cluster-sticky-name z-40');
                 const wrapper = createEl('div', 'input-wrapper');
+                // Added font-bold
                 wrapper.appendChild(createEl('input', `${inputBase} font-bold pr-6`, { type: 'text', value: c.name, onChange: (e) => updateClusterName(c.id, e.target.value), onInput: (e) => autoFitInput(e.target) }));
                 wrapper.appendChild(createEl('div', 'overlay-btn', { text: '×', onClick: () => removeCluster(c.id) }));
                 tdName.appendChild(wrapper);
@@ -515,11 +532,12 @@
                 });
             });
 
-            // Header
+            // Header - Using the 3-layer sticky system
             const hRow = createEl('tr');
-            hRow.appendChild(createEl('th', 'p-1 w-[30px] sticky-col-1 z-50 text-[10px] text-center text-slate-400', { text: '::' }));
-            hRow.appendChild(createEl('th', 'p-1 w-[24px] z-50')); // Duplicate icon col
-            hRow.appendChild(createEl('th', 'p-1 w-[100px] sticky-col-2 z-50 text-[10px] uppercase text-slate-500', { text: 'Name' }));
+            hRow.appendChild(createEl('th', 'p-1 w-[30px] sticky-left-1 z-50 text-[10px] text-center text-slate-400', { text: '::' }));
+            hRow.appendChild(createEl('th', 'p-1 w-[24px] sticky-left-2 z-50')); // Duplicate icon col
+            hRow.appendChild(createEl('th', 'p-1 w-[110px] sticky-left-3 z-50 text-[10px] uppercase text-slate-500', { text: 'Name' }));
+            
             hRow.appendChild(createEl('th', 'p-1 min-w-[20px] text-[10px] text-center', { text: 'C' }));
             hRow.appendChild(createEl('th', 'p-1 min-w-[90px] text-[10px] uppercase text-slate-500', { text: 'Assigned' }));
             
@@ -549,20 +567,21 @@
                 tr.addEventListener('drop', handleDrop);
                 tr.addEventListener('dragend', handleDragEnd);
 
-                // Handle
+                // Handle (Sticky 1)
                 tr.appendChild(createDragHandle());
 
-                // Duplicate Button (Left of Name)
-                const tdDup = createEl('td', 'p-1 text-center');
+                // Duplicate Button (Sticky 2)
+                const tdDup = createEl('td', 'p-1 text-center sticky-left-2 z-40');
                 const btnDup = createEl('button', 'text-amber-500 hover:text-amber-600', { html: '<svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>', onClick: () => duplicateProj(idx) });
                 tdDup.appendChild(btnDup);
                 tr.appendChild(tdDup);
 
-                // Name + Overlay Delete
+                // Name + Overlay Delete (Sticky 3)
                 const nameId = `proj_name_${idx}`;
-                const tdName = createEl('td', 'p-1 sticky-col-2 z-40');
+                const tdName = createEl('td', 'p-1 sticky-left-3 z-40');
                 const wrapper = createEl('div', 'input-wrapper');
-                wrapper.appendChild(createEl('input', `${inputBase} ${isProjectInTrouble ? 'input-error' : ''} pr-6`, { id: nameId, type: 'text', value: p.name, onChange: (e) => updateProj(idx, 'name', e.target.value), onInput: (e) => autoFitInput(e.target) }));
+                // Added font-bold here
+                wrapper.appendChild(createEl('input', `${inputBase} font-bold ${isProjectInTrouble ? 'input-error' : ''} pr-6`, { id: nameId, type: 'text', value: p.name, onChange: (e) => updateProj(idx, 'name', e.target.value), onInput: (e) => autoFitInput(e.target) }));
                 wrapper.appendChild(createEl('div', 'overlay-btn', { text: '×', onClick: () => removeProj(idx) }));
                 tdName.appendChild(wrapper);
                 tr.appendChild(tdName);
@@ -612,7 +631,7 @@
             afterDatasetsDraw(chart) {
                 const ctx = chart.ctx; const xAxis = chart.scales.x; const yAxis = chart.scales.y;
                 const gridColor = localStorage.getItem('theme') === 'dark' ? '#cbd5e1' : '#1e293b';
-                const separatorColor = '#94a3b8'; // Darker grey for boundaries
+                const separatorColor = '#0f172a'; // Black/Dark Slate for borders
 
                 // 1. Draw 10-section grid within the Cluster Width (100 units)
                 const oneUnitPx = (xAxis.getPixelForValue(100) - xAxis.getPixelForValue(0)) / 100;
@@ -637,12 +656,12 @@
                     ctx.lineWidth = 1.5; ctx.strokeStyle = separatorColor; 
                     ctx.stroke(); ctx.restore();
 
-                    // If last cluster, draw Right Edge too (FIX: Ensure it's not grey)
+                    // If last cluster, draw Right Edge too (Explicit Black)
                     if (i === clusterState.length - 1) {
                         const endX = startX + (oneUnitPx * 100);
                         ctx.save(); ctx.beginPath();
                         ctx.moveTo(endX, yAxis.top); ctx.lineTo(endX, yAxis.bottom);
-                        ctx.lineWidth = 1.5; ctx.strokeStyle = separatorColor; // Use same dark color
+                        ctx.lineWidth = 1.5; ctx.strokeStyle = separatorColor;
                         ctx.stroke(); ctx.restore();
                     }
                 });
@@ -730,8 +749,8 @@
         Chart.register(gridOverlayPlugin);
 
         function updateChart() {
-            // Dynamic Height Calculation: 45px per resource + 40px buffer
-            const rowHeight = 45; 
+            // Reduced rowHeight to remove excess whitespace
+            const rowHeight = 35; 
             const neededHeight = (resKeys.length * rowHeight) + 40;
             const container = document.getElementById('chartContainer');
             if(container.clientHeight !== neededHeight) {
@@ -752,7 +771,8 @@
                     label: `_BG_${c.id}`, 
                     data: resKeys.map(() => [startX, startX + 100]), // Only draw 0 to 100
                     backgroundColor: bgBarColor, 
-                    barPercentage: 0.6, categoryPercentage: 0.8, // Slightly thicker than previous
+                    // High percentage to fill the row
+                    barPercentage: 0.9, categoryPercentage: 0.9, 
                     grouped: false, order: 10, 
                     clusterId: c.id, clusterName: c.name
                 });
@@ -798,7 +818,7 @@
 
                 datasets.push({
                     label: p.name, data: pts, backgroundColor: bgColors,
-                    barPercentage: 0.6, categoryPercentage: 0.8,
+                    barPercentage: 0.9, categoryPercentage: 0.9,
                     grouped: false, order: 1, originalIndex: index,
                 });
             });
@@ -812,6 +832,15 @@
                 myChart.options.scales.x2.max = maxX;
                 myChart.options.scales.x2.ticks.color = textColor;
                 myChart.options.scales.y.ticks.color = textColor;
+                
+                // FORCE TICK UPDATE FOR CLUSTER NAMES
+                // This ensures labels appear exactly in the middle of each cluster
+                myChart.options.scales.x2.afterBuildTicks = (axis) => {
+                    axis.ticks = clusterState.map((c, i) => ({
+                        value: (i * CLUSTER_STRIDE) + (CLUSTER_WIDTH / 2)
+                    }));
+                };
+
                 myChart.update();
             } else {
                 myChart = new Chart(ctx, {
@@ -822,17 +851,23 @@
                         onClick: (e, elements) => {},
                         scales: {
                             x: { min: 0, max: maxX, stacked: false, grid: { display: false }, ticks: { display: false } },
-                            x2: { position: 'top', min: 0, max: maxX, grid: { display: false }, ticks: { color: textColor, font: { weight: 'bold', size: 11 }, callback: v => {
-                                for(let i=0; i<clusterState.length; i++) {
-                                    // Range based detection for labels
-                                    const start = i * CLUSTER_STRIDE;
-                                    const end = start + CLUSTER_WIDTH;
-                                    if (v >= start && v <= end && Math.abs(v - (start + CLUSTER_WIDTH/2)) < 5) {
-                                        return clusterState[i].name;
+                            x2: { 
+                                position: 'top', min: 0, max: maxX, grid: { display: false }, 
+                                ticks: { 
+                                    color: textColor, font: { weight: 'bold', size: 11 }, autoSkip: false, maxRotation: 0,
+                                    callback: function(val, index) {
+                                        // Since we force ticks in afterBuildTicks, the value passed here is exactly the cluster center
+                                        const clusterIndex = Math.floor(val / CLUSTER_STRIDE);
+                                        return clusterState[clusterIndex] ? clusterState[clusterIndex].name : '';
                                     }
+                                },
+                                // Force ticks at center of each cluster
+                                afterBuildTicks: (axis) => {
+                                    axis.ticks = clusterState.map((c, i) => ({
+                                        value: (i * CLUSTER_STRIDE) + (CLUSTER_WIDTH / 2)
+                                    }));
                                 }
-                                return '';
-                            }} },
+                            },
                             y: { stacked: false, ticks: { color: textColor, font: {size: 10} } }
                         },
                         plugins: {
