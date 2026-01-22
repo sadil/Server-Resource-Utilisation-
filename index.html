@@ -40,17 +40,17 @@
         :root { --chart-text: #334155; --bg-grey-bar: #e2e8f0; --sticky-bg: #ffffff; --border-col: #e2e8f0; }
         .dark { --chart-text: #cbd5e1; --bg-grey-bar: #334155; --sticky-bg: #1e293b; --border-col: #334155; }
 
-        /* Sticky Columns */
+        /* Sticky Columns - Compact Widths */
         .sticky-col-1 {
             position: sticky; left: 0; z-index: 40;
             background-color: var(--sticky-bg);
-            width: 40px; min-width: 40px; max-width: 40px;
+            width: 32px; min-width: 32px; max-width: 32px; /* Reduced from 40 */
         }
         .sticky-col-2 {
-            position: sticky; left: 40px; z-index: 40;
+            position: sticky; left: 32px; z-index: 40;
             background-color: var(--sticky-bg);
             border-right: 2px solid var(--border-col);
-            width: 120px; min-width: 120px; max-width: 120px;
+            width: 100px; min-width: 100px; max-width: 100px; /* Reduced from 120 */
         }
 
         /* Error State */
@@ -59,8 +59,8 @@
         .dark .input-error { background-color: #450a0a !important; color: #fecaca !important; }
 
         /* Text Wrapping */
-        th, td { white-space: normal !important; word-wrap: break-word !important; vertical-align: top; }
-        .editable-header { min-width: 80px; outline: none; cursor: text; display: block; padding-right: 20px; }
+        th, td { white-space: normal !important; word-wrap: break-word !important; vertical-align: middle; }
+        .editable-header { min-width: 60px; outline: none; cursor: text; display: block; padding-right: 18px; font-size: 0.75rem; line-height: 1rem; }
         .autosize-input { width: 100%; white-space: nowrap; overflow: hidden; transition: font-size 0.1s; }
 
         /* Drag Handle */
@@ -73,57 +73,60 @@
         .visible-popup { opacity: 1; pointer-events: auto; transform: translate(-50%, 0); }
     </style>
 </head>
-<body class="bg-slate-50 text-slate-800 dark:bg-slate-900 dark:text-slate-100 transition-colors duration-300 min-h-screen p-2 sm:p-4">
+<body class="bg-slate-50 text-slate-800 dark:bg-slate-900 dark:text-slate-100 transition-colors duration-300 min-h-screen p-1 sm:p-2">
 
     <div id="error-log" class="hidden bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert"></div>
 
-    <div id="custom-popup" class="hidden-popup fixed top-6 left-1/2 w-[90%] max-w-md bg-white dark:bg-slate-800 border-l-4 border-red-500 shadow-2xl rounded p-4 text-sm sm:text-base">
+    <div id="custom-popup" class="hidden-popup fixed top-6 left-1/2 w-[90%] max-w-md bg-white dark:bg-slate-800 border-l-4 border-red-500 shadow-2xl rounded p-3 text-xs sm:text-sm">
         <div class="flex justify-between items-start">
             <div id="popup-content" class="text-slate-800 dark:text-slate-200 whitespace-pre-wrap font-medium"></div>
             <button id="btn-close-popup" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 ml-2">✕</button>
         </div>
-        <div class="mt-2 text-xs text-slate-400 italic">Tap anywhere else to close</div>
+        <div class="mt-2 text-[10px] text-slate-400 italic">Tap anywhere else to close</div>
     </div>
 
-    <div class="max-w-7xl mx-auto space-y-4">
+    <div class="max-w-7xl mx-auto space-y-2 sm:space-y-4">
 
-        <div class="flex flex-wrap items-center justify-between gap-2 bg-white dark:bg-slate-800 p-3 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700">
-            <div class="flex items-center gap-3">
-                <h1 class="text-lg sm:text-xl font-bold text-blue-600 dark:text-blue-400 whitespace-nowrap">Server Utilisation</h1>
-                <div class="flex gap-2">
-                    <button id="btnUpdate" class="bg-green-600 hover:bg-green-700 text-white text-xs sm:text-sm font-semibold py-1.5 px-3 rounded shadow transition">↻ Update App</button>
-                    <button id="btnReset" class="bg-red-500 hover:bg-red-600 text-white text-xs sm:text-sm font-semibold py-1.5 px-3 rounded shadow transition">Reset</button>
+        <div class="flex flex-wrap items-center justify-between gap-2 bg-white dark:bg-slate-800 p-2 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700">
+            <div class="flex items-center gap-2">
+                <h1 class="text-base sm:text-lg font-bold text-blue-600 dark:text-blue-400 whitespace-nowrap">Server Utilisation</h1>
+                <div class="flex gap-1">
+                    <button id="btnUpdate" class="bg-green-600 hover:bg-green-700 text-white text-[10px] sm:text-xs font-semibold py-1 px-2 rounded shadow transition">↻</button>
+                    <button id="btnReset" class="bg-red-500 hover:bg-red-600 text-white text-[10px] sm:text-xs font-semibold py-1 px-2 rounded shadow transition">Reset</button>
                 </div>
             </div>
-            <button id="btnTheme" class="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-600 transition"><span class="text-xl">🌗</span></button>
+            <button id="btnTheme" class="p-1 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-600 transition"><span class="text-lg">🌗</span></button>
         </div>
 
-        <div class="grid grid-cols-1 gap-4">
+        <div class="grid grid-cols-1 gap-2 sm:gap-4">
 
             <!-- CHART -->
-            <div class="bg-white dark:bg-slate-800 p-3 sm:p-4 rounded-lg shadow border border-slate-200 dark:border-slate-700">
-                <h2 class="text-base font-semibold mb-2">Utilization</h2>
-                <div class="bg-slate-50 dark:bg-slate-900/50 p-2 rounded border-l-4 border-blue-500 text-xs sm:text-sm text-slate-600 dark:text-slate-400 mb-3">
-                    <span class="inline-block w-3 h-3 bg-slate-200 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 mr-1 align-middle"></span>
-                    <strong>Grey</strong>: Free Space. <strong>Striped Appendage</strong>: Demand Exceeded.<br>
-                    <span class="text-red-500 font-bold">*</span> Drag table rows to reorder stack.
+            <div class="bg-white dark:bg-slate-800 p-2 sm:p-4 rounded-lg shadow border border-slate-200 dark:border-slate-700">
+                <div class="flex justify-between items-end mb-1">
+                    <h2 class="text-sm font-semibold">Utilization</h2>
+                    <div class="text-[10px] text-slate-500 dark:text-slate-400">
+                        <span class="inline-block w-2 h-2 bg-slate-200 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 mr-1 align-middle"></span>Free Space
+                        <span class="text-red-500 font-bold ml-2">*</span> Drag rows to reorder
+                    </div>
                 </div>
-                <div class="relative h-[600px] w-full">
+                
+                <!-- Reduced Height: h-[320px] for mobile, sm:h-[500px] desktop -->
+                <div class="relative h-[320px] sm:h-[500px] w-full">
                     <canvas id="utilizationChart"></canvas>
                 </div>
             </div>
 
             <!-- CONFIG -->
-            <div class="bg-white dark:bg-slate-800 p-3 sm:p-4 rounded-lg shadow border border-slate-200 dark:border-slate-700">
-                <div class="flex justify-between items-center mb-2">
-                    <h2 class="text-base font-semibold">1. Configuration</h2>
-                    <div class="flex gap-2">
-                        <button onclick="addCluster()" class="bg-indigo-600 text-white text-xs font-bold py-1 px-2 rounded hover:bg-indigo-700 shadow" title="Add New Cluster">+ Cluster</button>
-                        <button onclick="addNewResource()" class="bg-green-600 text-white text-xs font-bold py-1 px-2 rounded hover:bg-green-700 shadow" title="Add Resource Column">+ Column</button>
+            <div class="bg-white dark:bg-slate-800 p-2 sm:p-4 rounded-lg shadow border border-slate-200 dark:border-slate-700">
+                <div class="flex justify-between items-center mb-1">
+                    <h2 class="text-sm font-semibold">1. Configuration</h2>
+                    <div class="flex gap-1">
+                        <button onclick="addCluster()" class="bg-indigo-600 text-white text-[10px] font-bold py-0.5 px-2 rounded hover:bg-indigo-700 shadow" title="Add New Cluster">+ Cluster</button>
+                        <button onclick="addNewResource()" class="bg-green-600 text-white text-[10px] font-bold py-0.5 px-2 rounded hover:bg-green-700 shadow" title="Add Resource Column">+ Column</button>
                     </div>
                 </div>
                 <div class="overflow-x-auto relative">
-                    <table id="capacityTable" class="w-full text-left text-xs sm:text-sm border-collapse min-w-[600px]">
+                    <table id="capacityTable" class="w-full text-left text-xs border-collapse min-w-[500px]">
                         <thead class="bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200"></thead>
                         <tbody class="divide-y divide-slate-200 dark:divide-slate-700"></tbody>
                     </table>
@@ -131,13 +134,13 @@
             </div>
 
             <!-- PROJECTS -->
-            <div class="bg-white dark:bg-slate-800 p-3 sm:p-4 rounded-lg shadow border border-slate-200 dark:border-slate-700">
-                <div class="flex justify-between items-center mb-2">
-                    <h2 class="text-base font-semibold">2. Project Workloads</h2>
-                    <button id="btnAddProject" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold py-1 px-3 rounded shadow transition">+ Add Workload</button>
+            <div class="bg-white dark:bg-slate-800 p-2 sm:p-4 rounded-lg shadow border border-slate-200 dark:border-slate-700">
+                <div class="flex justify-between items-center mb-1">
+                    <h2 class="text-sm font-semibold">2. Project Workloads</h2>
+                    <button id="btnAddProject" class="bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-semibold py-0.5 px-2 rounded shadow transition">+ Add Workload</button>
                 </div>
                 <div class="overflow-x-auto relative">
-                    <table id="projectsTable" class="w-full text-left text-xs sm:text-sm border-collapse min-w-[700px]">
+                    <table id="projectsTable" class="w-full text-left text-xs border-collapse min-w-[600px]">
                         <thead class="bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200"></thead>
                         <tbody id="projectRows" class="divide-y divide-slate-200 dark:divide-slate-700"></tbody>
                     </table>
@@ -314,10 +317,10 @@
             saveState(); refreshUI();
         }
         function autoFitInput(input) {
-            input.style.fontSize = '16px';
+            input.style.fontSize = '12px'; // Default compact size
             if (input.scrollWidth > input.clientWidth) {
                 const ratio = input.clientWidth / input.scrollWidth;
-                const newSize = Math.max(10, Math.floor(16 * ratio));
+                const newSize = Math.max(9, Math.floor(12 * ratio));
                 input.style.fontSize = newSize + 'px';
             }
         }
@@ -360,7 +363,7 @@
         }
         function handleTouchEnd(e) { if(touchDragItem) { touchDragItem.classList.remove('bg-slate-200', 'dark:bg-slate-700', 'opacity-70'); touchDragItem = null; } }
 
-        const inputBase = "autosize-input bg-slate-50 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded px-1 py-1 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-blue-500 focus:outline-none";
+        const inputBase = "autosize-input bg-slate-50 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded px-1 py-0.5 text-xs text-slate-900 dark:text-slate-100 focus:ring-1 focus:ring-blue-500 focus:outline-none";
         const headerInput = "editable-header font-bold text-center text-slate-700 dark:text-slate-200";
 
         // Helper to construct elements safely
@@ -384,13 +387,13 @@
 
             // Header
             const hRow = createEl('tr');
-            hRow.appendChild(createEl('th', 'p-2 sticky-col-1 z-50'));
-            hRow.appendChild(createEl('th', 'p-2 sticky-col-2 z-50', { text: 'Cluster Name' }));
+            hRow.appendChild(createEl('th', 'p-1 sticky-col-1 z-50'));
+            hRow.appendChild(createEl('th', 'p-1 sticky-col-2 z-50 text-[10px] uppercase text-slate-500', { text: 'Cluster' }));
             
             resLabels.forEach((label, idx) => {
-                const th = createEl('th', 'p-2 min-w-[100px] relative');
+                const th = createEl('th', 'p-1 min-w-[70px] relative');
                 const div = createEl('div', headerInput, { text: label, contenteditable: "true", onBlur: (e) => updateLabel(idx, e.target.innerText) });
-                const btn = createEl('button', 'absolute top-1 right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs shadow hover:bg-red-600 z-10 font-bold', { text: '×', onClick: () => removeResource(idx) });
+                const btn = createEl('button', 'absolute top-0 right-0 text-red-400 hover:text-red-600 text-[10px] w-4 h-4 z-10 font-bold', { text: '×', onClick: () => removeResource(idx) });
                 th.appendChild(div); th.appendChild(btn);
                 hRow.appendChild(th);
             });
@@ -403,7 +406,7 @@
                 
                 // Delete Button
                 const tdDel = createEl('td', 'p-1 sticky-col-1 text-center z-40');
-                tdDel.appendChild(createEl('button', 'text-red-500 hover:text-red-700 font-bold text-lg', { text: '×', onClick: () => removeCluster(c.id) }));
+                tdDel.appendChild(createEl('button', 'text-red-500 hover:text-red-700 font-bold text-sm', { text: '×', onClick: () => removeCluster(c.id) }));
                 tr.appendChild(tdDel);
 
                 // Cluster Name
@@ -446,15 +449,15 @@
 
             // Header
             const hRow = createEl('tr');
-            hRow.appendChild(createEl('th', 'p-2 w-[40px] sticky-col-1 z-50', { text: ':::' }));
-            hRow.appendChild(createEl('th', 'p-2 w-[120px] sticky-col-2 z-50', { text: 'Name' }));
-            hRow.appendChild(createEl('th', 'p-2 min-w-[30px]', { text: 'Col' }));
-            hRow.appendChild(createEl('th', 'p-2 min-w-[120px]', { text: 'Assigned' }));
+            hRow.appendChild(createEl('th', 'p-1 w-[32px] sticky-col-1 z-50 text-[10px] text-center text-slate-400', { text: '::' }));
+            hRow.appendChild(createEl('th', 'p-1 w-[100px] sticky-col-2 z-50 text-[10px] uppercase text-slate-500', { text: 'Name' }));
+            hRow.appendChild(createEl('th', 'p-1 min-w-[20px] text-[10px] text-center', { text: 'C' }));
+            hRow.appendChild(createEl('th', 'p-1 min-w-[90px] text-[10px] uppercase text-slate-500', { text: 'Assigned' }));
             
             resLabels.forEach((label, idx) => {
-                hRow.appendChild(createEl('th', `p-2 min-w-[80px] ${colsInTrouble.has(idx) ? 'header-error' : ''} rounded`, { text: label }));
+                hRow.appendChild(createEl('th', `p-1 min-w-[70px] ${colsInTrouble.has(idx) ? 'header-error' : ''} rounded text-[10px] uppercase text-slate-500`, { text: label }));
             });
-            hRow.appendChild(createEl('th', 'p-2 w-24 text-center', { text: 'Actions' }));
+            hRow.appendChild(createEl('th', 'p-1 w-16 text-center text-[10px] uppercase text-slate-500', { text: 'Act' }));
             thead.appendChild(hRow);
 
             // Body
@@ -479,7 +482,7 @@
                 tr.addEventListener('dragend', handleDragEnd);
 
                 // Handle
-                const tdHandle = createEl('td', 'p-1 text-center sticky-col-1 cursor-grab active:cursor-grabbing text-slate-400 drag-handle z-40', { text: '⠿' });
+                const tdHandle = createEl('td', 'p-1 text-center sticky-col-1 cursor-grab active:cursor-grabbing text-slate-400 drag-handle z-40 text-xs', { text: '⠿' });
                 tdHandle.addEventListener('touchstart', handleTouchStart, {passive: false});
                 tdHandle.addEventListener('touchmove', handleTouchMove, {passive: false});
                 tdHandle.addEventListener('touchend', handleTouchEnd);
@@ -493,7 +496,7 @@
 
                 // Color
                 const tdCol = createEl('td', 'p-1 text-center');
-                const divCol = createEl('div', 'w-6 h-6 mx-auto rounded overflow-hidden relative');
+                const divCol = createEl('div', 'w-4 h-4 mx-auto rounded overflow-hidden relative');
                 divCol.appendChild(createEl('div', 'absolute inset-0', { style: `background-color:${p.color}` }));
                 divCol.appendChild(createEl('input', '', { type: 'color', value: p.color, onChange: (e) => updateProj(idx, 'color', e.target.value) }));
                 tdCol.appendChild(divCol);
@@ -520,8 +523,8 @@
 
                 // Actions
                 const tdAct = createEl('td', 'p-1 text-center flex justify-center gap-1');
-                tdAct.appendChild(createEl('button', 'bg-amber-500 text-white p-1.5 rounded hover:bg-amber-600 shadow', { html: '<svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>', onClick: () => duplicateProj(idx) }));
-                tdAct.appendChild(createEl('button', 'bg-red-500 text-white p-1.5 rounded hover:bg-red-600 shadow', { html: '<svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>', onClick: () => removeProj(idx) }));
+                tdAct.appendChild(createEl('button', 'bg-amber-500 text-white p-1 rounded hover:bg-amber-600 shadow', { html: '<svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>', onClick: () => duplicateProj(idx) }));
+                tdAct.appendChild(createEl('button', 'bg-red-500 text-white p-1 rounded hover:bg-red-600 shadow', { html: '<svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>', onClick: () => removeProj(idx) }));
                 tr.appendChild(tdAct);
 
                 if(isProjectInTrouble) { setTimeout(() => { const el = document.getElementById(nameId); if(el) bindLongPress(el, () => showPopup(errorMessages[0])); }, 0); }
@@ -564,7 +567,7 @@
                     // Draw Line at Start of Cluster (Left Edge)
                     ctx.save(); ctx.beginPath();
                     ctx.moveTo(startX, yAxis.top); ctx.lineTo(startX, yAxis.bottom);
-                    ctx.lineWidth = 2; ctx.strokeStyle = '#94a3b8'; // Thick column divider
+                    ctx.lineWidth = 1.5; ctx.strokeStyle = '#94a3b8'; // Thick column divider
                     ctx.stroke(); ctx.restore();
 
                     // If last cluster, draw Right Edge too
@@ -572,7 +575,7 @@
                         const endX = startX + (oneUnitPx * 100);
                         ctx.save(); ctx.beginPath();
                         ctx.moveTo(endX, yAxis.top); ctx.lineTo(endX, yAxis.bottom);
-                        ctx.lineWidth = 2; ctx.strokeStyle = '#94a3b8';
+                        ctx.lineWidth = 1.5; ctx.strokeStyle = '#94a3b8';
                         ctx.stroke(); ctx.restore();
                     }
                 });
@@ -603,7 +606,7 @@
 
                             if(barModel) {
                                 const y = barModel.y;
-                                const height = barModel.height;
+                                const height = barModel.height; // Height is thinner now due to barPercentage
                                 const top = y - height/2;
                                 const gap = 2;
 
@@ -622,9 +625,9 @@
                                 ctx.fill();
 
                                 ctx.strokeStyle = lastColor;
-                                ctx.lineWidth = 3;
+                                ctx.lineWidth = 2; // Thinner stripes for thinner bars
                                 // Draw diagonals
-                                for (let lx = boxX - height; lx < boxX + boxW; lx += 6) {
+                                for (let lx = boxX - height; lx < boxX + boxW; lx += 4) {
                                     ctx.beginPath();
                                     ctx.moveTo(lx, top + height);
                                     ctx.lineTo(lx + height, top);
@@ -636,21 +639,21 @@
                                 ctx.lineWidth = 1;
                                 ctx.strokeRect(boxX, top, boxW, height);
 
-                                // Bracket logic
+                                // Bracket logic - Reduced size for compact view
                                 ctx.beginPath();
-                                ctx.moveTo(boxX, top - 2);
-                                ctx.lineTo(boxX, top - 6);
-                                ctx.lineTo(boxX + boxW, top - 6);
-                                ctx.lineTo(boxX + boxW, top - 2);
+                                ctx.moveTo(boxX, top - 1);
+                                ctx.lineTo(boxX, top - 3);
+                                ctx.lineTo(boxX + boxW, top - 3);
+                                ctx.lineTo(boxX + boxW, top - 1);
                                 ctx.strokeStyle = gridColor;
                                 ctx.stroke();
 
                                 ctx.fillStyle = gridColor;
-                                ctx.font = 'bold 9px Arial';
+                                ctx.font = 'bold 8px Arial'; // Smaller font
                                 ctx.textAlign = 'center';
                                 ctx.textBaseline = 'bottom';
                                 const pct = Math.round((stats.exceeded / stats.capacity) * 100);
-                                ctx.fillText(`Exceeded: ${pct}%`, boxX + boxW/2, top - 7);
+                                ctx.fillText(`+${pct}%`, boxX + boxW/2, top - 4); // Shorter text
                             }
                         }
                     });
@@ -674,7 +677,9 @@
                     label: `_BG_${c.id}`, 
                     data: resKeys.map(() => [startX, startX + 100]), // Only draw 0 to 100
                     backgroundColor: bgBarColor, 
-                    barPercentage: 0.8, categoryPercentage: 0.9, grouped: false, order: 10, 
+                    // Compact Bars: Reduced percentage
+                    barPercentage: 0.45, categoryPercentage: 0.55, 
+                    grouped: false, order: 10, 
                     clusterId: c.id, clusterName: c.name
                 });
             });
@@ -719,7 +724,9 @@
 
                 datasets.push({
                     label: p.name, data: pts, backgroundColor: bgColors,
-                    barPercentage: 0.8, categoryPercentage: 0.9, grouped: false, order: 1, originalIndex: index,
+                    // Compact Bars: Reduced percentage
+                    barPercentage: 0.45, categoryPercentage: 0.55,
+                    grouped: false, order: 1, originalIndex: index,
                 });
             });
 
@@ -742,14 +749,14 @@
                         onClick: (e, elements) => {},
                         scales: {
                             x: { min: 0, max: maxX, stacked: false, grid: { display: false }, ticks: { display: false } },
-                            x2: { position: 'top', min: 0, max: maxX, grid: { display: false }, ticks: { color: textColor, font: { weight: 'bold', size: 12 }, callback: v => {
+                            x2: { position: 'top', min: 0, max: maxX, grid: { display: false }, ticks: { color: textColor, font: { weight: 'bold', size: 10 }, callback: v => {
                                 for(let i=0; i<clusterState.length; i++) {
                                     const center = (i * CLUSTER_STRIDE) + (CLUSTER_WIDTH / 2);
                                     if (Math.abs(v - center) < 5) return clusterState[i].name;
                                 }
                                 return '';
                             }} },
-                            y: { stacked: false, ticks: { color: textColor, font: {size: 11} } }
+                            y: { stacked: false, ticks: { color: textColor, font: {size: 10} } }
                         },
                         plugins: {
                             legend: {
@@ -757,6 +764,8 @@
                                 labels: {
                                     filter: i => !i.text.startsWith('_BG_'),
                                     color: textColor,
+                                    font: { size: 10 },
+                                    boxWidth: 10,
                                     generateLabels: (chart) => {
                                         return projects.map((p, i) => ({
                                             text: p.name, fillStyle: p.color, hidden: hiddenProjectIndices.has(i), index: i, textDecoration: hiddenProjectIndices.has(i) ? 'line-through' : ''
@@ -770,6 +779,8 @@
                                 }
                             },
                             tooltip: {
+                                bodyFont: { size: 10 },
+                                titleFont: { size: 10 },
                                 callbacks: {
                                     label: function(ctx) {
                                         if (ctx.dataset.label.startsWith('_BG_')) {
@@ -778,7 +789,7 @@
                                             const total = clusterState.find(c => c.id === cId)[resKeys[rIdx]];
                                             const used = usageMap[cId][rIdx];
                                             const freePct = Math.max(0, 100 - used); const freeUnits = (freePct/100)*total;
-                                            return [`Available: ${freePct.toFixed(1)}%`, `${Math.floor(freeUnits)} / ${total}`];
+                                            return [`Avail: ${freePct.toFixed(1)}%`, `${Math.floor(freeUnits)} / ${total}`];
                                         }
                                         const p = projects[ctx.dataset.originalIndex];
                                         if (!p) return '';
